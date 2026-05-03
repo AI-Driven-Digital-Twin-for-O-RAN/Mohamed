@@ -1,0 +1,442 @@
+================================================================================
+  O-RAN MANUAL COMMANDS REFERENCE
+  Everything you need to run GRU or LB scenarios manually.
+  All paths are absolute. No guessing required.
+================================================================================
+
+PATHS REFERENCE
+---------------
+  ROOT:          /home/omar_farouk/open-ran-clean/yousef_fathy
+  FLEXRIC BIN:   /home/omar_farouk/open-ran-clean/yousef_fathy/flexric/build/examples/ric/nearRT-RIC
+  FLEXRIC CONF:  /home/omar_farouk/open-ran-clean/yousef_fathy/flexric/flexric.conf
+  NS3 DIR:       /home/omar_farouk/open-ran-clean/yousef_fathy/ns-O-RAN-flexric/mmwave-LENA-oran
+  DOCKER DIR:    /home/omar_farouk/open-ran-clean/yousef_fathy/ns-O-RAN-flexric/mmwave-LENA-oran/GUI
+  XAPP TRIGGER:  /home/omar_farouk/open-ran-clean/yousef_fathy/ns-O-RAN-flexric/mmwave-LENA-oran/GUI/FlexRIC xApp GUI trigger
+  3D GUI:        /home/omar_farouk/open-ran-clean/5g-gui-v2
+  GRU SERVICE:   /home/omar_farouk/open-ran-clean/yousef_fathy/HANDOVER_xApp_Test/gru_xapp.py
+  XAPP GRU:      /home/omar_farouk/open-ran-clean/yousef_fathy/flexric/build/examples/xApp/c/handover_gru/xapp_handover_gru
+  XAPP LB:       /home/omar_farouk/open-ran-clean/yousef_fathy/flexric/build/examples/xApp/c/lb_awf/xapp_lb_awf
+  HANDOVER CSV:  /home/omar_farouk/handover.csv
+  FLEXRIC LOG:   /tmp/flexric.log   <-- ALWAYS use this, NEVER /tmp/farouk_flexric.log
+  3D RESULTS:    /home/omar_farouk/open-ran-clean/3D_GUI_Sim_Results
+  LB RESULTS:    /home/omar_farouk/lb_sim_results
+
+
+================================================================================
+  KILL ALL PROCESSES (RUN THIS BEFORE EVERY NEW SIMULATION)
+================================================================================
+
+  # Kills all simulation processes and clears FlexRIC log — safe to run anytime
+  pkill -9 -f 'nearRT-RIC'           # FlexRIC nearRT-RIC
+  pkill -9 -f 'ns3\.42'              # NS-3 simulation
+  pkill -9 -f 'xapp_handover_gru'    # GRU C xApp
+  pkill -9 -f 'xapp_lb_awf'          # LB C xApp
+  pkill -9 -f 'xapp_rc_handover'     # RC handover xApp
+  pkill -9 -f 'sim_data_pusher'      # Data pusher
+  pkill -9 -f 'gru_xapp\.py'         # GRU Python service
+  pkill -f   'uvicorn controller:app' # 3D GUI controller (port 8001)
+  > /tmp/flexric.log                  # Clear FlexRIC log so E2 count starts from 0
+
+  # One-liner version (same as above):
+  pkill -9 -f 'nearRT-RIC'; pkill -9 -f 'ns3\.42'; pkill -9 -f 'xapp_handover_gru'; pkill -9 -f 'xapp_lb_awf'; pkill -9 -f 'gru_xapp\.py'; pkill -9 -f 'sim_data_pusher'; pkill -f 'uvicorn controller:app'; > /tmp/flexric.log; echo "All clear."
+
+  # Verify nothing is left running:
+  ps aux | grep -E "nearRT|ns3\.42|gru_xapp|sim_data_pusher|uvicorn controller" | grep -v grep
+
+
+================================================================================
+  ONE-COMMAND LAUNCHER (RECOMMENDED — USE THIS AFTER EVERY REBOOT)
+================================================================================
+
+  bash /home/omar_farouk/open-ran-clean/gru.sh
+
+  This single command does everything automatically:
+    1. Kills all stale processes from any previous run
+    2. Clears /tmp/flexric.log
+    3. Starts Docker (InfluxDB + 2D backend on port 8000)
+    4. Starts 3D controller (port 8001)
+    5. Starts 3D frontend (port 3001)
+    6. Launches the simulation automatically — NO need to open browser or press anything
+
+  Default parameters: simTime=60  nUEs=20  nCells=7
+
+  TO CHANGE PARAMETERS — pass as arguments:
+    bash gru.sh [simTime] [nUEs] [nCells]
+
+    Examples:
+      bash gru.sh            # simTime=60, nUEs=20, nCells=7  (defaults)
+      bash gru.sh 100        # simTime=100, rest default
+      bash gru.sh 60 30 7    # simTime=60, 30 UEs, 7 cells
+
+  TO CHANGE simTime FROM THE 3D GUI INSTEAD:
+    - Do NOT run gru.sh (it auto-launches and ignores the GUI input)
+    - Run these commands manually in order:
+
+    Step 1 — Kill stale processes:
+      pkill -9 -f 'nearRT-RIC'; pkill -9 -f 'ns3\.42'; pkill -9 -f 'xapp_handover_gru'
+      pkill -9 -f 'sim_data_pusher'; pkill -9 -f 'gru_xapp\.py'
+      > /tmp/flexric.log
+
+    Step 2 — Start Docker:
+      cd /home/omar_farouk/open-ran-clean/yousef_fathy/ns-O-RAN-flexric/mmwave-LENA-oran/GUI
+      docker compose up -d influxdb gui
+
+    Step 3 — Start controller:
+      cd /home/omar_farouk/open-ran-clean/5g-gui-v2
+      python3 -m uvicorn controller:app --host 0.0.0.0 --port 8001 --log-level warning &
+
+    Step 4 — Start frontend:
+      cd /home/omar_farouk/open-ran-clean/5g-gui-v2
+      npm run dev &
+
+    Step 5 — Open browser, set your simTime, press LAUNCH ALL:
+      http://localhost:3001
+
+  After simulation finishes, results auto-saved to:
+    /home/omar_farouk/open-ran-clean/3D_GUI_Sim_Results/sim###_TIMESTAMP_gru_scenario/
+
+  Open browser to monitor (optional — simulation runs without it):
+    3D GUI  →  http://localhost:3001
+    2D GUI  →  http://localhost:8000
+
+
+================================================================================
+  OPTION A: USE THE 3D GUI — PORT 3001  (RECOMMENDED)
+================================================================================
+
+  Terminal 1 — Start controller (port 8001):
+    cd /home/omar_farouk/open-ran-clean/5g-gui-v2
+    python3 controller.py
+
+  Terminal 2 — Start Vite frontend (port 3001):
+    cd /home/omar_farouk/open-ran-clean/5g-gui-v2
+    npm run dev
+
+  Browser → http://localhost:3001
+  Select scenario → Press LAUNCH ALL
+
+  Results auto-saved to: /home/omar_farouk/open-ran-clean/3D_GUI_Sim_Results/
+
+
+================================================================================
+  OPTION B: USE THE 2D GUI — PORT 8000
+================================================================================
+
+  The 2D GUI runs entirely inside Docker (no controller.py or npm needed).
+
+    cd /home/omar_farouk/open-ran-clean/yousef_fathy/ns-O-RAN-flexric/mmwave-LENA-oran/GUI
+    docker compose up -d
+
+  Browser → http://localhost:8000
+
+  To stop the 2D GUI:
+    cd /home/omar_farouk/open-ran-clean/yousef_fathy/ns-O-RAN-flexric/mmwave-LENA-oran/GUI
+    docker compose down
+
+
+================================================================================
+  OPTION C: FULLY MANUAL — GRU SCENARIO (step by step)
+================================================================================
+
+  ---- STEP 0: KILL ALL STALE PROCESSES (ALWAYS DO THIS FIRST) ----
+
+    pkill -9 -f 'nearRT-RIC'
+    pkill -9 -f 'ns3.42'
+    pkill -9 -f 'xapp_handover_gru'
+    pkill -9 -f 'xapp_lb_awf'
+    pkill -9 -f 'xapp_rc_handover_ctrl'
+    pkill -9 -f 'xApp_trigger.py'
+    pkill -9 -f 'sim_data_pusher'
+    pkill -9 -f 'gru_xapp.py'
+
+    # CRITICAL — clear stale E2 data from previous runs:
+    > /tmp/flexric.log
+
+    sleep 3
+
+  ---- STEP 1: START DOCKER (InfluxDB + FastAPI backend) ----
+
+    cd /home/omar_farouk/open-ran-clean/yousef_fathy/ns-O-RAN-flexric/mmwave-LENA-oran/GUI
+    docker compose up -d influxdb gui
+    sleep 5
+
+  ---- STEP 2: START FLEXRIC ----
+
+    /home/omar_farouk/open-ran-clean/yousef_fathy/flexric/build/examples/ric/nearRT-RIC \
+      -c /home/omar_farouk/open-ran-clean/yousef_fathy/flexric/flexric.conf \
+      > /tmp/farouk_flexric_stdout.log 2>&1 &
+
+    # Wait until FlexRIC is listening on port 36421 before continuing:
+    watch -n 1 "ss -tlnp | grep ':36421'"
+    # Press Ctrl+C once it shows output
+
+  ---- STEP 3a: START GRU PYTHON SERVICE ----
+
+    cd /home/omar_farouk/open-ran-clean/yousef_fathy/HANDOVER_xApp_Test
+    PORT=5000 python3 gru_xapp.py > /tmp/gru_service.log 2>&1 &
+    sleep 3
+
+    # Verify it's running:
+    curl http://localhost:5000/health
+
+  ---- STEP 3b: START NS-3 SIMULATION ----
+
+    cd /home/omar_farouk/open-ran-clean/yousef_fathy/ns-O-RAN-flexric/mmwave-LENA-oran
+    ./ns3 run "scratch/gru_scenario.cc \
+      --e2TermIp=127.0.0.1 \
+      --hoSinrDifference=3 \
+      --indicationPeriodicity=0.05 \
+      --simTime=60 \
+      --KPM_E2functionID=2 \
+      --RC_E2functionID=3 \
+      --N_MmWaveEnbNodes=7 \
+      --N_Ues=20" \
+      > /tmp/ns3_sim.log 2>&1 &
+
+  ---- STEP 3c: WAIT FOR E2 CONNECTIONS ----
+
+    # Keep running this every 10s until you see 7:
+    grep -c "E2 SETUP-REQUEST" /tmp/flexric.log
+    # Target = 7  (one per mmWave cell)
+    # Usually takes 30-60 seconds
+
+  ---- STEP 4: START DATA PUSHER ----
+
+    cd /home/omar_farouk/open-ran-clean/yousef_fathy/ns-O-RAN-flexric/mmwave-LENA-oran
+    python3 sim_data_pusher.py > /tmp/pusher.log 2>&1 &
+    sleep 3
+
+  ---- STEP 5: START GRU xAPP ----
+
+    LSTM_SERVICE_URL=http://localhost:5000 \
+    /home/omar_farouk/open-ran-clean/yousef_fathy/flexric/build/examples/xApp/c/handover_gru/xapp_handover_gru \
+      -c /home/omar_farouk/open-ran-clean/yousef_fathy/flexric/flexric.conf \
+      > /tmp/xapp_gru.log 2>&1 &
+
+  ---- STEP 6: MONITOR PROGRESS ----
+
+    # Handover count live:
+    watch -n 5 'wc -l /home/omar_farouk/handover.csv 2>/dev/null | awk "{print \$1}"'
+
+    # xApp output:
+    tail -f /tmp/xapp_gru.log
+
+    # FlexRIC E2 activity:
+    tail -f /tmp/flexric.log
+
+    # Is ns-3 still running?
+    ps aux | grep ns3.42 | grep -v grep
+
+  ---- STEP 7: CALCULATE PING-PONG AFTER SIMULATION FINISHES ----
+
+    python3 - <<'EOF'
+import csv
+csv_path = "/home/omar_farouk/handover.csv"
+window = 5.0
+rows = []
+with open(csv_path) as f:
+    reader = csv.DictReader(f)
+    for r in reader:
+        rows.append((float(r["time_sec"]), str(r["ue_id"]), str(r["from_cell"]), str(r["to_cell"])))
+rows.sort()
+last = {}
+total = len(rows)
+pp = 0
+for t, ue, src, tgt in rows:
+    key = (ue, tgt, src)
+    if key in last and t - last[key] <= window:
+        pp += 1
+    last[(ue, src, tgt)] = t
+rate = round(100 * pp / total, 2) if total else 0
+print(f"Total handovers : {total}")
+print(f"Ping-pong count : {pp}")
+print(f"Ping-pong rate  : {rate}%")
+print(f"Reference (2D)  : 2.1%")
+EOF
+
+
+================================================================================
+  OPTION D: FULLY MANUAL — LOAD BALANCING (LB) SCENARIO
+================================================================================
+
+  ---- STEP 0: KILL ALL STALE PROCESSES (same as GRU — always first) ----
+
+    pkill -9 -f 'nearRT-RIC'
+    pkill -9 -f 'ns3.42'
+    pkill -9 -f 'xapp_handover_gru'
+    pkill -9 -f 'xapp_lb_awf'
+    pkill -9 -f 'xapp_rc_handover_ctrl'
+    pkill -9 -f 'xApp_trigger.py'
+    pkill -9 -f 'sim_data_pusher'
+    pkill -9 -f 'gru_xapp.py'
+    > /tmp/flexric.log
+    sleep 3
+
+  ---- STEP 1: START DOCKER ----
+
+    cd /home/omar_farouk/open-ran-clean/yousef_fathy/ns-O-RAN-flexric/mmwave-LENA-oran/GUI
+    docker compose up -d influxdb gui
+    sleep 5
+
+  ---- STEP 2: START FLEXRIC ----
+
+    /home/omar_farouk/open-ran-clean/yousef_fathy/flexric/build/examples/ric/nearRT-RIC \
+      -c /home/omar_farouk/open-ran-clean/yousef_fathy/flexric/flexric.conf \
+      > /tmp/farouk_flexric_stdout.log 2>&1 &
+
+    # Wait for port 36421:
+    watch -n 1 "ss -tlnp | grep ':36421'"
+    # Ctrl+C once it appears
+
+  ---- STEP 3: START NS-3 WITH LB SCENARIO ----
+    NOTE: NO GRU Python service needed for LB.
+
+    cd /home/omar_farouk/open-ran-clean/yousef_fathy/ns-O-RAN-flexric/mmwave-LENA-oran
+    ./ns3 run "scratch/load_balancing_scenario.cc \
+      --e2TermIp=127.0.0.1 \
+      --hoSinrDifference=3 \
+      --indicationPeriodicity=1.5 \
+      --simTime=60 \
+      --KPM_E2functionID=2 \
+      --RC_E2functionID=3 \
+      --N_MmWaveEnbNodes=7 \
+      --N_Ues=20" \
+      > /tmp/ns3_sim.log 2>&1 &
+
+  ---- STEP 4: WAIT FOR E2 CONNECTIONS ----
+
+    grep -c "E2 SETUP-REQUEST" /tmp/flexric.log
+    # Keep running until count = 7
+
+  ---- STEP 5: START DATA PUSHER ----
+
+    cd /home/omar_farouk/open-ran-clean/yousef_fathy/ns-O-RAN-flexric/mmwave-LENA-oran
+    python3 sim_data_pusher.py > /tmp/pusher.log 2>&1 &
+    sleep 3
+
+  ---- STEP 6: START LB xAPP ----
+
+    /home/omar_farouk/open-ran-clean/yousef_fathy/flexric/build/examples/xApp/c/lb_awf/xapp_lb_awf \
+      -c /home/omar_farouk/open-ran-clean/yousef_fathy/flexric/flexric.conf \
+      > /tmp/xapp_lb.log 2>&1 &
+
+    # Watch xApp output:
+    tail -f /tmp/xapp_lb.log
+
+  ---- STEP 7: MONITOR PROGRESS ----
+
+    # Handover count live:
+    watch -n 5 'wc -l /home/omar_farouk/handover.csv 2>/dev/null | awk "{print \$1}"'
+
+    # Is ns-3 still running?
+    ps aux | grep ns3.42 | grep -v grep
+
+  REFERENCE: Previous LB results at /home/omar_farouk/lb_sim_results/
+
+
+================================================================================
+  STOP EVERYTHING
+================================================================================
+
+    pkill -9 -f 'nearRT-RIC'
+    pkill -9 -f 'ns3.42'
+    pkill -9 -f 'xapp_handover_gru'
+    pkill -9 -f 'xapp_lb_awf'
+    pkill -9 -f 'xapp_rc_handover_ctrl'
+    pkill -9 -f 'xApp_trigger.py'
+    pkill -9 -f 'sim_data_pusher'
+    pkill -9 -f 'gru_xapp.py'
+    cd /home/omar_farouk/open-ran-clean/yousef_fathy/ns-O-RAN-flexric/mmwave-LENA-oran/GUI
+    docker compose down
+
+
+================================================================================
+  QUICK STATUS CHECK (one command)
+================================================================================
+
+    echo "=== Processes ===" && \
+    ps aux | grep -E 'nearRT-RIC|ns3.42|xapp|pusher|gru_xapp' | grep -v grep ; \
+    echo "=== Handovers ===" && \
+    wc -l /home/omar_farouk/handover.csv 2>/dev/null ; \
+    echo "=== E2 connections ===" && \
+    grep -c "E2 SETUP-REQUEST" /tmp/flexric.log 2>/dev/null ; \
+    echo "=== 3D Results folders ===" && \
+    ls /home/omar_farouk/open-ran-clean/3D_GUI_Sim_Results/ 2>/dev/null
+
+
+================================================================================
+  SIMULATION RESULTS & DECISION LOG
+================================================================================
+
+  Results are auto-saved after each run to:
+    /home/omar_farouk/open-ran-clean/3D_GUI_Sim_Results/sim###_TIMESTAMP_SCENARIO/
+
+  Each folder contains:
+    handover.csv          — raw handover events
+    decision_log.csv      — UUID-tagged decisions with is_correct flag
+    decision_summary.json — accuracy %, ping-pong rate, counts
+    summary.txt           — human-readable summary
+    plots/
+      decision_quality.png       — correct vs ping-pong scatter over time
+      handovers_over_time.png    — cumulative handovers curve
+    flexric.log / simulation.log / xapp.log / gru.log / pusher.log
+
+  All decision history is also stored in SQLite:
+    /home/omar_farouk/open-ran-clean/sim_decisions.db
+
+  Query decisions via API:
+    curl http://localhost:8001/ctrl/decisions               # all sims
+    curl http://localhost:8001/ctrl/decisions?sim=sim005    # specific sim
+    curl http://localhost:8001/ctrl/last-result             # last run summary
+
+  Manually recalculate ping-pong rate (correct per-UE method):
+  # The controller groups handovers per UE before checking A→B→A reversals.
+  # Run this on any saved handover.csv to verify:
+    python3 - << 'EOF'
+import csv
+from collections import defaultdict
+path = "/home/omar_farouk/open-ran-clean/3D_GUI_Sim_Results/<sim###_TIMESTAMP_SCENARIO>/handover.csv"  # change this path
+rows = list(csv.DictReader(open(path)))
+executed = [r for r in rows if r.get('executed_ok','').strip()=='1']
+ue_history = defaultdict(list)
+for r in executed:
+    ue_history[r['ue_id']].append((float(r['time_sec']), r['from_cell'], r['to_cell']))
+pp = 0
+for ue_rows in ue_history.values():
+    for i in range(1, len(ue_rows)):
+        a, b = ue_rows[i-1], ue_rows[i]
+        if a[2] == b[1] and a[1] == b[2] and (b[0]-a[0]) <= 5.0:
+            pp += 1
+print(f"Executed: {len(executed)}, Ping-pong: {pp}, Rate: {pp/len(executed)*100:.2f}%")
+EOF
+
+
+================================================================================
+  TROUBLESHOOTING
+================================================================================
+
+  PROBLEM: xApp prints "Insufficient samples 1/2" — 0 handovers
+  CAUSE:   xApp started too late (>60s after simulation begin)
+  FIX:     Always do Step 0 (kill all), clear /tmp/flexric.log,
+           and wait for 7 E2 SETUP-REQUESTs before starting the xApp.
+
+  PROBLEM: FlexRIC crashes — "assertion sr->len_e2_nodes_conn > 0 failed"
+  CAUSE:   Stale xApp from previous crashed run reconnected before ns-3.
+  FIX:     pkill -9 everything (Step 0) before every new run.
+
+  PROBLEM: GRU xApp makes 0 handovers even though it started on time
+  CAUSE:   gru_xapp.py (port 5000) not running, or LSTM_SERVICE_URL not set.
+  FIX:     Start gru_xapp.py first, then export LSTM_SERVICE_URL=http://localhost:5000
+
+  PROBLEM: grep shows 0 E2 SETUP-REQUESTs forever
+  CAUSE:   Wrong log file. FlexRIC ONLY writes to /tmp/flexric.log.
+  FIX:     grep -c "E2 SETUP-REQUEST" /tmp/flexric.log   (not farouk_flexric.log)
+
+  PROBLEM: ns-3 or FlexRIC won't start — "address already in use"
+  CAUSE:   Previous run left zombie processes.
+  FIX:     Run all pkill commands from Step 0 again.
+
+  CHECK WHAT IS RUNNING:
+    ps aux | grep -E 'nearRT-RIC|ns3.42|xapp|pusher|gru_xapp|xApp_trigger' | grep -v grep
+
+================================================================================

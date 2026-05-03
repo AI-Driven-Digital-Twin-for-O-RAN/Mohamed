@@ -1,0 +1,11 @@
+add_subdirectory(ctrl)
+add_subdirectory(helloworld)
+add_subdirectory(keysight)
+#add_subdirectory(monitor)
+add_subdirectory(slice)
+add_subdirectory(tc)
+add_subdirectory(kpm_rc)
+add_subdirectory(orange)
+add_subdirectory(handover_gru)
+add_subdirectory(lb_awf)
+

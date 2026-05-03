@@ -1,0 +1,32 @@
+# Makefile for building xApp with LSTM integration
+# Requires: libcurl-dev, libjson-c-dev
+
+CC = gcc
+CFLAGS = -Wall -Wextra -O2 -g
+LDFLAGS = -lcurl -ljson-c -lpthread
+
+# Paths (adjust based on your flexric structure)
+FLEXRIC_SRC = ../../../../src
+XAPP_INC = -I$(FLEXRIC_SRC)/xApp \
+           -I$(FLEXRIC_SRC)/sm/rc_sm/ie/ir \
+           -I$(FLEXRIC_SRC)/util \
+           -I$(FLEXRIC_SRC)/sm/rc_sm \
+           -I$(FLEXRIC_SRC)/sm/rc_sm/ie
+
+# Source files
+SOURCES = best2.c lstm_predictor_client.c
+OBJECTS = $(SOURCES:.c=.o)
+TARGET = handover_xapp_lstm
+
+.PHONY: all clean
+
+all: $(TARGET)
+
+$(TARGET): $(OBJECTS)
+	$(CC) $(OBJECTS) -o $(TARGET) $(LDFLAGS)
+
+%.o: %.c
+	$(CC) $(CFLAGS) $(XAPP_INC) -c $< -o $@
+
+clean:
+	rm -f $(OBJECTS) $(TARGET)

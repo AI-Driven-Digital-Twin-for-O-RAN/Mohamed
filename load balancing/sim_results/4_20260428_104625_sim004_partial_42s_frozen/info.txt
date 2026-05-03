@@ -1,0 +1,19 @@
+Simulation saved: 28 أبر, 2026 EEST 10:46:26 ص
+Label: sim004_partial_42s_frozen
+Folder: 4_20260428_104625_sim004_partial_42s_frozen
+
+load_balance_kpis.csv lines:  295
+lb_handover_xapp.csv lines:   410
+handover.csv lines:           335
+
+=== Handover Summary ===
+Total HOs: 334   Successful: 167   Ping-pong: 35 (10.5%)
+
+=== Cell Load Distribution (avg UE count over 42s) ===
+  Cell 2: avg=3.0 UEs  final=3 UEs
+  Cell 3: avg=2.8 UEs  final=2 UEs
+  Cell 4: avg=2.8 UEs  final=3 UEs
+  Cell 5: avg=3.0 UEs  final=3 UEs
+  Cell 6: avg=3.0 UEs  final=3 UEs
+  Cell 7: avg=2.9 UEs  final=3 UEs
+  Cell 8: avg=2.6 UEs  final=3 UEs

@@ -1,0 +1,1184 @@
+/*
+ * Licensed to the OpenAirInterface (OAI) Software Alliance under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The OpenAirInterface Software Alliance licenses this file to You under
+ * the OAI Public License, Version 1.1  (the "License"); you may not use this file
+ * except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.openairinterface.org/?page_id=698
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *-------------------------------------------------------------------------------
+ * For more information about the OpenAirInterface (OAI) Software Alliance:
+ *      contact@openairinterface.org
+ *-------------------------------------------------------------------------------
+ * Authors:
+ *  Mina Yonan <m.yonan@aucegypt.edu>
+ *  Mostafa Ashraf <mostafa.ashraf.ext@orange.com>
+ *  Abdelrhman Soliman <abdelrhman.soliman.ext@orange.com>
+ *  Aya Kamal <aya.kamal.ext@orange.com>
+ */
+// Pure Handover xApp - Simplified for mobility optimization
+
+#include "../../../../src/xApp/e42_xapp_api.h"
+#include "../../../../src/sm/rc_sm/ie/ir/ran_param_struct.h"
+#include "../../../../src/sm/rc_sm/ie/ir/ran_param_list.h"
+#include "../../../../src/util/time_now_us.h"
+#include "../../../../src/util/alg_ds/ds/lock_guard/lock_guard.h"
+#include "../../../../src/sm/rc_sm/rc_sm_id.h"
+#include "../../../../src/sm/rc_sm/ie/rc_data_ie.h"
+#include "../../../../src/util/e.h"
+
+#define MIN_SINR -10
+
+typedef struct {
+    const e2_node_arr_xapp_t* nodes;
+    struct SINRNeighboringValues* neighCells;
+    int ueID;
+    uint8_t frmCurntCell;
+    uint8_t toTargetCell;
+} callback_data_t;
+
+typedef uint16_t (*Callback)(callback_data_t);
+
+typedef enum {
+    CONNECTED_MODE_MOBILITY = 3,
+} rc_ctrl_service_style_id_e;
+  
+typedef enum {
+    QOS_FLOW_ID_1 = 1,
+    QOS_FLOW_ID_10 = 10
+} qos_flow_id_e;
+
+typedef enum {
+    DRB_ID_3 = 3
+} drb_id_e;
+  
+typedef enum {
+    PDU_SESSION_ID_5 = 5
+} pdu_session_id_e;
+
+// ============================================
+// Handover State Management
+// ============================================
+typedef enum {
+    HO_STATE_IDLE = 0,
+    HO_STATE_DECISION_MADE,
+    HO_STATE_COMMAND_SENT,
+    HO_STATE_IN_PROGRESS,
+    HO_STATE_COMPLETED,
+    HO_STATE_FAILED
+} handover_state_e;
+
+typedef struct {
+    handover_state_e state;
+    uint16_t source_cell;
+    uint16_t target_cell;
+    time_t decision_time;
+    time_t command_time;
+    time_t completion_time;
+    int attempts;
+} handover_context_t;
+
+#define MAX_HANDOVER_TIMEOUT_SEC 5
+
+const char* ho_state_to_string(handover_state_e state) {
+    switch(state) {
+        case HO_STATE_IDLE: return "IDLE";
+        case HO_STATE_DECISION_MADE: return "DECISION_MADE";
+        case HO_STATE_COMMAND_SENT: return "COMMAND_SENT";
+        case HO_STATE_IN_PROGRESS: return "IN_PROGRESS";
+        case HO_STATE_COMPLETED: return "COMPLETED";
+        case HO_STATE_FAILED: return "FAILED";
+        default: return "UNKNOWN";
+    }
+}
+  
+static ue_id_e2sm_t ue_id;
+
+static uint64_t const period_ms = 100;
+
+static pthread_mutex_t mtx;
+
+static void log_gnb_ue_id(ue_id_e2sm_t ue_id) 
+{
+  if (ue_id.gnb.gnb_cu_ue_f1ap_lst != NULL) 
+  {
+    for (size_t i = 0; i < ue_id.gnb.gnb_cu_ue_f1ap_lst_len; i++) 
+    {
+      printf("UE ID type = gNB-CU, gnb_cu_ue_f1ap = %u\n", ue_id.gnb.gnb_cu_ue_f1ap_lst[i]);
+    }
+  } else 
+  {
+    printf("UE ID type = gNB, amf_ue_ngap_id = %lu\n", ue_id.gnb.amf_ue_ngap_id);
+  }
+  if (ue_id.gnb.ran_ue_id != NULL) 
+  {
+    printf("ran_ue_id = %lx\n", *ue_id.gnb.ran_ue_id);
+  }
+}
+
+static void log_du_ue_id(ue_id_e2sm_t ue_id) 
+{
+  printf("UE ID type = gNB-DU, gnb_cu_ue_f1ap = %u\n", ue_id.gnb_du.gnb_cu_ue_f1ap);
+  if (ue_id.gnb_du.ran_ue_id != NULL) 
+  {
+    printf("ran_ue_id = %lx\n", *ue_id.gnb_du.ran_ue_id);
+  }
+}
+
+static void log_cuup_ue_id(ue_id_e2sm_t ue_id) 
+{
+  printf("UE ID type = gNB-CU-UP, gnb_cu_cp_ue_e1ap = %u\n", ue_id.gnb_cu_up.gnb_cu_cp_ue_e1ap);
+  if (ue_id.gnb_cu_up.ran_ue_id != NULL) 
+  {
+    printf("ran_ue_id = %lx\n", *ue_id.gnb_cu_up.ran_ue_id);
+  }
+}
+
+typedef void (*log_ue_id)(ue_id_e2sm_t ue_id);
+
+static log_ue_id log_ue_id_e2sm[END_UE_ID_E2SM] = 
+{
+    log_du_ue_id,
+    log_cuup_ue_id,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+};
+
+static void log_int_value(byte_array_t name, meas_record_lst_t meas_record) 
+{
+  if (cmp_str_ba("RRU.PrbTotDl", name) == 0) {
+    printf("RRU.PrbTotDl = %d [PRBs]\n", meas_record.int_val);
+    printf("RRU.PrbTotUl = %d [PRBs]\n", meas_record.int_val);
+  } else if (cmp_str_ba("DRB.PdcpSduVolumeDL", name) == 0) {
+    printf("DRB.PdcpSduVolumeDL = %d [kb]\n", meas_record.int_val);
+  } else if (cmp_str_ba("DRB.PdcpSduVolumeUL", name) == 0) {
+    printf("DRB.PdcpSduVolumeUL = %d [kb]\n", meas_record.int_val);
+  }
+}
+
+static void log_real_value(byte_array_t name, meas_record_lst_t meas_record) 
+{
+  if (cmp_str_ba("DRB.RlcSduDelayDl", name) == 0) {
+    printf("DRB.RlcSduDelayDl = %.2f [μs]\n", meas_record.real_val);
+  } else if (cmp_str_ba("DRB.UEThpDl", name) == 0) {
+    printf("DRB.UEThpDl = %.2f [kbps]\n", meas_record.real_val);
+  } else if (cmp_str_ba("DRB.UEThpUl", name) == 0) {
+    printf("DRB.UEThpUl = %.2f [kbps]\n", meas_record.real_val);
+  } else if (strncmp(name.buf, "L3servingSINR3gpp_cell_", strlen("L3servingSINR3gpp_cell_")) == 0) {
+    printf("%s, sinr= %.4f [db]\n", name.buf, meas_record.real_val);
+  } else if (strncmp(name.buf, "L3neighSINRListOf_UEID_", strlen("L3neighSINRListOf_UEID_")) == 0) {
+    printf("%s, sinr= %.4f [db]\n", name.buf, meas_record.real_val);
+  }
+}
+
+typedef void (*log_meas_value)(byte_array_t name, meas_record_lst_t meas_record);
+
+static log_meas_value get_meas_value[END_MEAS_VALUE] = {
+    log_int_value,
+    log_real_value,
+    NULL,
+};
+
+static void match_meas_name_type(meas_type_t meas_type, meas_record_lst_t meas_record) 
+{
+  get_meas_value[meas_record.value](meas_type.name, meas_record);
+}
+
+static void match_id_meas_type(meas_type_t meas_type, meas_record_lst_t meas_record) 
+{
+  (void)meas_type;
+  (void)meas_record;
+  assert(false && "ID Measurement Type not yet supported");
+}
+
+typedef void (*check_meas_type)(meas_type_t meas_type, meas_record_lst_t meas_record);
+
+static check_meas_type match_meas_type[END_MEAS_TYPE] = 
+{
+    match_meas_name_type,
+    match_id_meas_type,
+};
+
+// ============================================
+// SINR Data Structures
+// ============================================
+struct SINRNeighboringValues 
+{
+  bool is_available;
+  uint16_t neighCellID;
+  double sinr;
+  int counter;
+};
+
+struct SINRServingValues 
+{
+  bool is_available;
+  uint16_t ueID;
+  double sinr;
+  struct SINRNeighboringValues* neighCells;
+  size_t numOfNeighCells;
+  handover_context_t ho_context;
+};
+
+struct SINR_Map 
+{
+  uint16_t cellID;
+  struct SINRServingValues* connectedUEs;
+  size_t numOfConnectedUEs;
+  bool is_running;
+};
+
+struct registeredCells {
+  bool is_registered;
+  struct SINR_Map* sinrMap;
+};
+
+#define MAX_REGISTERED_CELLS 10
+#define MAX_REGISTERED_UES 20
+#define MAX_REGISTERED_NEIGHBOURS 20
+
+struct registeredCells cells_sinr_map[MAX_REGISTERED_CELLS] = {{false, NULL}};
+
+// ============================================
+// SINR Map Functions
+// ============================================
+struct InfoObj 
+{
+  uint16_t cellID;
+  uint16_t ueID;
+};
+
+struct InfoObj parseServingMsg(const char* msg) 
+{
+  struct InfoObj info;
+  int ret = sscanf(msg, "L3servingSINR3gpp_cell_%hd_UEID_%hd", &info.cellID, &info.ueID);
+  if (ret == 2)
+    return info;
+  info.cellID = -1;
+  info.ueID = -1;
+  return info;
+}
+
+struct InfoObj parseNeighMsg(const char* msg) 
+{
+  struct InfoObj info;
+  int ret = sscanf(msg, "L3neighSINRListOf_UEID_%hd_of_Cell_%hd", &info.ueID, &info.cellID);
+  if (ret == 2)
+    return info;
+  info.ueID = -1;
+  info.cellID = -1;
+  return info;
+}
+
+bool isMeasNameContains(const char* meas_name, const char* name) 
+{
+  return strncmp(meas_name, name, strlen(name)) == 0;
+}
+
+struct SINR_Map* add_SINR(const uint16_t cellID) 
+{
+  assert(cellID != 0);
+  if (cells_sinr_map[cellID].sinrMap == NULL && !cells_sinr_map[cellID].is_registered) 
+  {
+    cells_sinr_map[cellID].sinrMap = (struct SINR_Map*)calloc(1, sizeof(struct SINR_Map));
+    cells_sinr_map[cellID].is_registered = true;
+    cells_sinr_map[cellID].sinrMap->cellID = cellID;
+    cells_sinr_map[cellID].sinrMap->connectedUEs = NULL;
+    cells_sinr_map[cellID].sinrMap->numOfConnectedUEs = 0;
+  }
+  return cells_sinr_map[cellID].sinrMap;
+}
+
+void add_UE(struct SINR_Map* cell, const uint16_t ueID, const double sinr) 
+{
+  assert(cell != NULL);
+  if (cell->connectedUEs == NULL) {
+    cell->connectedUEs = (struct SINRServingValues*)calloc(MAX_REGISTERED_UES, sizeof(struct SINRServingValues));
+
+    cell->connectedUEs[ueID].ueID = ueID;
+    cell->connectedUEs[ueID].sinr = sinr;
+    cell->connectedUEs[ueID].neighCells = NULL;
+    cell->connectedUEs[ueID].numOfNeighCells = 0;
+    cell->connectedUEs[ueID].ho_context.state = HO_STATE_IDLE;
+    cell->connectedUEs[ueID].ho_context.attempts = 0;
+
+  } else 
+  {
+    assert(cell->connectedUEs != NULL);
+    assert(cell->numOfConnectedUEs != 0);
+    assert(ueID <= MAX_REGISTERED_UES);
+
+    cell->connectedUEs[ueID].ueID = ueID;
+    cell->connectedUEs[ueID].sinr = sinr;
+  }
+  cell->connectedUEs[ueID].is_available = true;
+  cell->numOfConnectedUEs += 1;
+}
+
+struct SINRServingValues* get_UE(const uint16_t cellID, const uint16_t ueID) 
+{
+  if (cells_sinr_map[cellID].is_registered) {
+    assert(cells_sinr_map[cellID].sinrMap->connectedUEs[ueID].ueID == ueID);
+    return &(cells_sinr_map[cellID].sinrMap->connectedUEs[ueID]);
+  }
+  return NULL;
+}
+
+// ✅ SIMPLIFIED: No averaging, instant update
+void add_neighCell(struct SINRServingValues* UE, const uint16_t neighCellID, const double sinr) 
+{
+  assert(UE != NULL);
+
+  if (UE->neighCells == NULL) {
+    UE->neighCells = (struct SINRNeighboringValues*)calloc(MAX_REGISTERED_NEIGHBOURS,
+                                                           sizeof(struct SINRNeighboringValues));
+    assert(UE->neighCells != NULL);
+  }
+
+  struct SINRNeighboringValues* neighCell = &UE->neighCells[neighCellID];
+
+  // ✅ Always update with latest value (no averaging)
+  neighCell->neighCellID = neighCellID;
+  neighCell->sinr = sinr;
+  neighCell->counter = 1;  // Always ready
+
+  if (!neighCell->is_available) {
+    UE->numOfNeighCells++;
+  }
+  
+  neighCell->is_available = true;
+
+  printf("Neighbor cell %d for UE %d: SINR %.2f dB (READY)\n", 
+         neighCellID, UE->ueID, sinr);
+}
+
+// ✅ SIMPLIFIED: Simple SINR comparison
+uint8_t getTargetCellID(callback_data_t data)
+{
+    assert(data.neighCells != NULL);
+    
+    struct SINRServingValues* serving_ue = get_UE(data.frmCurntCell, data.ueID);
+    if (serving_ue == NULL) {
+        printf("[xApp] ERROR: Cannot find serving UE %d in cell %d\n",
+               data.ueID, data.frmCurntCell);
+        return 0;
+    }
+    
+    double serving_sinr = serving_ue->sinr;
+    double max_sinr = serving_sinr;
+    uint8_t targetCell = 0;
+    
+    // ✅ Configurable handover margin (0 = any improvement triggers HO)
+    const double HANDOVER_MARGIN = 1.0;  // Change to 0.0 for immediate HO
+    
+    printf("\n=== Handover Evaluation for UE %d ===\n", data.ueID);
+    printf("Serving Cell %d: SINR = %.2f dB\n", data.frmCurntCell, serving_sinr);
+    printf("Handover Margin: %.1f dB\n", HANDOVER_MARGIN);
+    
+    // Evaluate all neighbor cells
+    for (int i = 0; i < MAX_REGISTERED_NEIGHBOURS; i++)
+    {
+        if (!data.neighCells[i].is_available)
+            continue;
+        
+        double neighbor_sinr = data.neighCells[i].sinr;
+        
+        // ✅ Simple condition: neighbor better than serving + margin
+        if (neighbor_sinr > serving_sinr + HANDOVER_MARGIN) {
+            double gain = neighbor_sinr - serving_sinr;
+            printf("  Cell %d: SINR %.2f dB - CANDIDATE (gain: %.2f dB)\n",
+                   i, neighbor_sinr, gain);
+            
+            // Select best neighbor
+            if (neighbor_sinr > max_sinr) {
+                max_sinr = neighbor_sinr;
+                targetCell = i;
+            }
+        } else {
+            printf("  Cell %d: SINR %.2f dB - not better than serving\n",
+                   i, neighbor_sinr);
+        }
+    }
+    
+    if (targetCell != 0 && targetCell != data.frmCurntCell) {
+        double final_gain = max_sinr - serving_sinr;
+        printf("  ✓ Selected Target: Cell %d (SINR: %.2f dB, Gain: %.2f dB)\n",
+               targetCell, max_sinr, final_gain);
+    } else {
+        printf("  ✗ No better cell found\n");
+    }
+    
+    return targetCell;
+}
+
+// ============================================
+// KPM Callback
+// ============================================
+static void log_kpm_measurements(kpm_ind_msg_format_1_t const* msg_frm_1) 
+{
+  if (msg_frm_1 == NULL ||
+      msg_frm_1->meas_info_lst_len == 0 || 
+      msg_frm_1->meas_info_lst_len > 1000 ||
+      msg_frm_1->meas_data_lst_len == 0 ||
+      msg_frm_1->meas_data_lst_len > 1000000) {
+      
+      fprintf(stderr, "[WARN] Invalid/Corrupted KPM - info=%zu, data=%zu (SKIPPING)\n", 
+              msg_frm_1->meas_info_lst_len,
+              msg_frm_1->meas_data_lst_len);
+      return;
+  }
+
+  if (msg_frm_1->meas_info_lst_len != msg_frm_1->meas_data_lst_len) 
+  {
+    printf("Error: meas_info_lst_len= (%ld) not equal meas_data_lst_len= (%ld)\n", 
+           msg_frm_1->meas_info_lst_len,
+           msg_frm_1->meas_data_lst_len);
+    return;
+  }
+
+  for (size_t i = 0; i < msg_frm_1->meas_info_lst_len; i++) 
+  {
+    meas_type_t const meas_type = msg_frm_1->meas_info_lst[i].meas_type;
+    meas_data_lst_t const data_item = msg_frm_1->meas_data_lst[i];
+
+    for (size_t j = 0; j < data_item.meas_record_len;) {
+      meas_record_lst_t const record_item = data_item.meas_record_lst[j];
+
+      if (meas_type.type == NAME_MEAS_TYPE) 
+      {
+        if (isMeasNameContains(meas_type.name.buf, "L3servingSINR3gpp_cell_")) 
+        {
+          struct InfoObj info = parseServingMsg(meas_type.name.buf);
+          double sinr = record_item.real_val;
+
+          struct SINR_Map* cell = add_SINR(info.cellID);
+          add_UE(cell, info.ueID, sinr);
+
+          printf("Serving Cell %d - UE %d: %.2f dB\n", info.cellID, info.ueID, sinr);
+
+        } else if (isMeasNameContains(meas_type.name.buf, "L3neighSINRListOf_UEID_")) 
+        {
+          struct InfoObj info = parseNeighMsg(meas_type.name.buf);
+
+          meas_record_lst_t const sinr = record_item;
+          meas_record_lst_t const NeighbourID = data_item.meas_record_lst[j + 1];
+
+          struct SINRServingValues* UE = get_UE(info.cellID, info.ueID);
+          assert(UE != NULL);
+
+          add_neighCell(UE, NeighbourID.int_val, sinr.real_val);
+          j += 2;
+          continue;
+        }
+      }
+      j++;
+    }
+  }
+}
+
+static void sm_cb_kpm(sm_ag_if_rd_t const* rd) 
+{
+  assert(rd != NULL);
+  assert(rd->type == INDICATION_MSG_AGENT_IF_ANS_V0);
+  assert(rd->ind.type == KPM_STATS_V3_0);
+  
+  kpm_ind_data_t const* ind = &rd->ind.kpm.ind;
+  kpm_ric_ind_hdr_format_1_t const* hdr_frm_1 = &ind->hdr.kpm_ric_ind_hdr_format_1;
+  kpm_ind_msg_format_3_t const* msg_frm_3 = &ind->msg.frm_3;
+  
+  static int counter = 1;
+  
+  {
+    lock_guard(&mtx);
+    
+    if (msg_frm_3 == NULL || 
+        msg_frm_3->ue_meas_report_lst_len == 0 || 
+        msg_frm_3->ue_meas_report_lst_len > 1000 ||
+        msg_frm_3->meas_report_per_ue == NULL) {
+      fprintf(stderr, "[WARN] Invalid KPM Format 3 data (SKIPPING callback)\n");
+      return;
+    }
+    
+    for (size_t i = 0; i < msg_frm_3->ue_meas_report_lst_len; i++) 
+    {
+      ue_id_e2sm_t const ue_id_e2sm = msg_frm_3->meas_report_per_ue[i].ue_meas_report_lst;
+      ue_id_e2sm_e const type = ue_id_e2sm.type;
+      
+      free_ue_id_e2sm(&ue_id);
+      ue_id = cp_ue_id_e2sm(&ue_id_e2sm);
+      
+      log_kpm_measurements(&msg_frm_3->meas_report_per_ue[i].ind_msg_format_1);
+    }
+    counter++;
+  }
+}
+
+// ============================================
+// KPM Subscription Setup
+// ============================================
+static test_info_lst_t filter_predicate(test_cond_type_e type, test_cond_e cond, int value) 
+{
+  test_info_lst_t dst = {0};
+
+  dst.test_cond_type = type;
+  dst.IsStat = TRUE_TEST_COND_TYPE;
+
+  dst.test_cond = calloc(1, sizeof(test_cond_e));
+  assert(dst.test_cond != NULL && "Memory allocation failed for test_cond");
+  *dst.test_cond = cond;
+
+  dst.test_cond_value = calloc(1, sizeof(test_cond_value_t));
+  assert(dst.test_cond_value != NULL && "Memory allocation failed for test_cond_value");
+  dst.test_cond_value->type = INTEGER_TEST_COND_VALUE;
+
+  int64_t* int_value = calloc(1, sizeof(int64_t));
+  assert(int_value != NULL && "Memory allocation failed for int_value");
+  *int_value = value;
+  dst.test_cond_value->int_value = int_value;
+  return dst;
+}
+
+static label_info_lst_t fill_kpm_label(void) 
+{
+  label_info_lst_t label_item = {0};
+
+  label_item.noLabel = ecalloc(1, sizeof(enum_value_e));
+  *label_item.noLabel = TRUE_ENUM_VALUE;
+
+  return label_item;
+}
+
+static kpm_act_def_format_1_t fill_act_def_frm_1(ric_report_style_item_t const* report_item) 
+{
+  assert(report_item != NULL);
+
+  kpm_act_def_format_1_t ad_frm_1 = {0};
+
+  size_t const sz = report_item->meas_info_for_action_lst_len;
+
+  ad_frm_1.meas_info_lst_len = sz;
+  ad_frm_1.meas_info_lst = calloc(sz, sizeof(meas_info_format_1_lst_t));
+  assert(ad_frm_1.meas_info_lst != NULL && "Memory exhausted");
+
+  for (size_t i = 0; i < sz; i++) 
+  {
+    meas_info_format_1_lst_t* meas_item = &ad_frm_1.meas_info_lst[i];
+    meas_item->meas_type.type = NAME_MEAS_TYPE;
+    meas_item->meas_type.name = copy_byte_array(report_item->meas_info_for_action_lst[i].name);
+
+    meas_item->label_info_lst_len = 1;
+    meas_item->label_info_lst = ecalloc(1, sizeof(label_info_lst_t));
+    meas_item->label_info_lst[0] = fill_kpm_label();
+  }
+
+  ad_frm_1.gran_period_ms = period_ms;
+  ad_frm_1.cell_global_id = NULL;
+
+#if defined KPM_V2_03 || defined KPM_V3_00
+  ad_frm_1.meas_bin_range_info_lst_len = 0;
+  ad_frm_1.meas_bin_info_lst = NULL;
+#endif
+
+  return ad_frm_1;
+}
+
+static kpm_act_def_t fill_report_style_4(ric_report_style_item_t const* report_item) 
+{
+  assert(report_item != NULL);
+  assert(report_item->act_def_format_type == FORMAT_4_ACTION_DEFINITION);
+
+  kpm_act_def_t act_def = {.type = FORMAT_4_ACTION_DEFINITION};
+
+  act_def.frm_4.matching_cond_lst_len = 1;
+  act_def.frm_4.matching_cond_lst =
+      calloc(act_def.frm_4.matching_cond_lst_len, sizeof(matching_condition_format_4_lst_t));
+  assert(act_def.frm_4.matching_cond_lst != NULL && "Memory exhausted");
+  
+  test_cond_type_e const type = IsStat_TEST_COND_TYPE;
+  test_cond_e const condition = LESSTHAN_TEST_COND;
+  int const value = 40;
+  act_def.frm_4.matching_cond_lst[0].test_info_lst = filter_predicate(type, condition, value);
+
+  act_def.frm_4.action_def_format_1 = fill_act_def_frm_1(report_item);
+
+  return act_def;
+}
+
+typedef kpm_act_def_t (*fill_kpm_act_def)(ric_report_style_item_t const* report_item);
+
+static fill_kpm_act_def get_kpm_act_def[END_RIC_SERVICE_REPORT] = 
+{
+    NULL,
+    NULL,
+    NULL,
+    fill_report_style_4,
+    NULL,
+};
+
+static kpm_sub_data_t gen_kpm_subs(kpm_ran_function_def_t const* ran_func) 
+{
+  assert(ran_func != NULL);
+  assert(ran_func->ric_event_trigger_style_list != NULL);
+
+  kpm_sub_data_t kpm_sub = {0};
+
+  assert(ran_func->ric_event_trigger_style_list[0].format_type == FORMAT_1_RIC_EVENT_TRIGGER);
+  kpm_sub.ev_trg_def.type = FORMAT_1_RIC_EVENT_TRIGGER;
+  kpm_sub.ev_trg_def.kpm_ric_event_trigger_format_1.report_period_ms = period_ms;
+
+  kpm_sub.sz_ad = 1;
+  kpm_sub.ad = calloc(kpm_sub.sz_ad, sizeof(kpm_act_def_t));
+  assert(kpm_sub.ad != NULL && "Memory exhausted");
+
+  ric_report_style_item_t* const report_item = &ran_func->ric_report_style_list[0];
+  ric_service_report_e const report_style_type = report_item->report_style_type;
+  *kpm_sub.ad = get_kpm_act_def[report_style_type](report_item);
+
+  return kpm_sub;
+}
+
+static size_t find_sm_idx(sm_ran_function_t* rf, size_t sz, bool (*f)(sm_ran_function_t const*, int const),
+                          int const id) 
+{
+  for (size_t i = 0; i < sz; i++) 
+  {
+    if (f(&rf[i], id))
+      return i;
+  }
+
+  assert(0 != 0 && "SM ID could not be found in the RAN Function List");
+}
+
+// ============================================
+// RC Control Message Generation
+// ============================================
+static e2sm_rc_ctrl_hdr_frmt_1_t gen_rc_ctrl_hdr_frmt_1(ue_id_e2sm_t ue_id, uint32_t ric_style_type,
+                                                         uint16_t ctrl_act_id) {
+  e2sm_rc_ctrl_hdr_frmt_1_t dst = {0};
+
+  dst.ue_id = cp_ue_id_e2sm(&ue_id);
+  dst.ric_style_type = ric_style_type;
+  dst.ctrl_act_id = ctrl_act_id;
+
+  return dst;
+}
+
+static e2sm_rc_ctrl_hdr_t gen_rc_ctrl_hdr(e2sm_rc_ctrl_hdr_e hdr_frmt, ue_id_e2sm_t ue_id,
+                                           uint32_t ric_style_type, uint16_t ctrl_act_id) 
+{
+  e2sm_rc_ctrl_hdr_t dst = {0};
+
+  if (hdr_frmt == FORMAT_1_E2SM_RC_CTRL_HDR) {
+    dst.format = FORMAT_1_E2SM_RC_CTRL_HDR;
+    dst.frmt_1 = gen_rc_ctrl_hdr_frmt_1(ue_id, ric_style_type, ctrl_act_id);
+  } else 
+  {
+    assert(0 != 0 && "not implemented the fill func for this ctrl hdr frmt");
+  }
+
+  return dst;
+}
+
+static void set_EUTRA_CGI(seq_ran_param_t* EUTRA_CGI, const char targetcell) 
+{
+  assert(EUTRA_CGI != NULL);
+  assert(targetcell >= '0' && targetcell <= '9');
+
+  if (EUTRA_CGI->ran_param_val.flag_false == NULL) 
+  {
+    EUTRA_CGI->ran_param_val.flag_false = calloc(1, sizeof(ran_parameter_value_t));
+    assert(EUTRA_CGI->ran_param_val.flag_false != NULL && "Memory exhausted");
+  }
+
+  EUTRA_CGI->ran_param_val.flag_false->type = BIT_STRING_RAN_PARAMETER_VALUE;
+
+  byte_array_t target_ba = {0};
+  target_ba.len = 1;
+  target_ba.buf = malloc(sizeof(uint8_t));
+  assert(target_ba.buf != NULL && "Memory exhausted");
+  target_ba.buf[0] = targetcell;
+
+  EUTRA_CGI->ran_param_val.flag_false->octet_str_ran.len = target_ba.len;
+  EUTRA_CGI->ran_param_val.flag_false->octet_str_ran.buf = target_ba.buf;
+}
+
+static void gen_Target_Primary_Cell_ID(seq_ran_param_t* Target_Primary_Cell_ID, char targetcell) 
+{
+  Target_Primary_Cell_ID->ran_param_id = TARGET_PRIMARY_CELL_ID_8_4_4_1;
+  Target_Primary_Cell_ID->ran_param_val.type = STRUCTURE_RAN_PARAMETER_VAL_TYPE;
+  Target_Primary_Cell_ID->ran_param_val.strct = calloc(1, sizeof(ran_param_struct_t));
+  assert(Target_Primary_Cell_ID->ran_param_val.strct != NULL && "Memory exhausted");
+  Target_Primary_Cell_ID->ran_param_val.strct->sz_ran_param_struct = 1;
+  Target_Primary_Cell_ID->ran_param_val.strct->ran_param_struct = calloc(1, sizeof(seq_ran_param_t));
+  assert(Target_Primary_Cell_ID->ran_param_val.strct->ran_param_struct != NULL && "Memory exhausted");
+
+  seq_ran_param_t* CHOICE_Target_Cell = &Target_Primary_Cell_ID->ran_param_val.strct->ran_param_struct[0];
+  CHOICE_Target_Cell->ran_param_id = CHOICE_TARGET_CELL_8_4_4_1;
+  CHOICE_Target_Cell->ran_param_val.type = STRUCTURE_RAN_PARAMETER_VAL_TYPE;
+  CHOICE_Target_Cell->ran_param_val.strct = calloc(1, sizeof(ran_param_struct_t));
+  assert(CHOICE_Target_Cell->ran_param_val.strct != NULL && "Memory exhausted");
+  CHOICE_Target_Cell->ran_param_val.strct->sz_ran_param_struct = 2;
+  CHOICE_Target_Cell->ran_param_val.strct->ran_param_struct = calloc(2, sizeof(seq_ran_param_t));
+  assert(CHOICE_Target_Cell->ran_param_val.strct->ran_param_struct != NULL && "Memory exhausted");
+
+  seq_ran_param_t* NR_Cell = &CHOICE_Target_Cell->ran_param_val.strct->ran_param_struct[0];
+  NR_Cell->ran_param_id = NR_CELL_8_4_4_1;
+  NR_Cell->ran_param_val.type = STRUCTURE_RAN_PARAMETER_VAL_TYPE;
+  NR_Cell->ran_param_val.strct = calloc(1, sizeof(ran_param_struct_t));
+  assert(NR_Cell->ran_param_val.strct != NULL && "Memory exhausted");
+  NR_Cell->ran_param_val.strct->sz_ran_param_struct = 1;
+  NR_Cell->ran_param_val.strct->ran_param_struct = calloc(1, sizeof(seq_ran_param_t));
+
+  seq_ran_param_t* NR_CGI = &NR_Cell->ran_param_val.strct->ran_param_struct[0];
+  NR_CGI->ran_param_id = NR_CGI_8_4_4_1;
+  NR_CGI->ran_param_val.type = ELEMENT_KEY_FLAG_FALSE_RAN_PARAMETER_VAL_TYPE;
+  NR_CGI->ran_param_val.flag_false = calloc(1, sizeof(ran_parameter_value_t));
+  assert(NR_CGI->ran_param_val.flag_false != NULL && "Memory exhausted");
+  NR_CGI->ran_param_val.flag_false->type = BIT_STRING_RAN_PARAMETER_VALUE;
+  
+  char nr_cgi_str[1] = {targetcell};
+  byte_array_t nr_cgi = cp_str_to_ba(nr_cgi_str);
+  NR_CGI->ran_param_val.flag_false->octet_str_ran.len = nr_cgi.len;
+  NR_CGI->ran_param_val.flag_false->octet_str_ran.buf = nr_cgi.buf;
+
+  seq_ran_param_t* EUTRA_Cell = &CHOICE_Target_Cell->ran_param_val.strct->ran_param_struct[1];
+  EUTRA_Cell->ran_param_id = EUTRA_CELL_8_4_4_1;
+  EUTRA_Cell->ran_param_val.type = STRUCTURE_RAN_PARAMETER_VAL_TYPE;
+  EUTRA_Cell->ran_param_val.strct = calloc(1, sizeof(ran_param_struct_t));
+  assert(EUTRA_Cell->ran_param_val.strct != NULL && "Memory exhausted");
+  EUTRA_Cell->ran_param_val.strct->sz_ran_param_struct = 1;
+  EUTRA_Cell->ran_param_val.strct->ran_param_struct = calloc(1, sizeof(seq_ran_param_t));
+
+  seq_ran_param_t* EUTRA_CGI = &EUTRA_Cell->ran_param_val.strct->ran_param_struct[0];
+  EUTRA_CGI->ran_param_id = EUTRA_CGI_8_4_4_1;
+  EUTRA_CGI->ran_param_val.type = ELEMENT_KEY_FLAG_FALSE_RAN_PARAMETER_VAL_TYPE;
+  EUTRA_CGI->ran_param_val.flag_false = calloc(1, sizeof(ran_parameter_value_t));
+  assert(EUTRA_CGI->ran_param_val.flag_false != NULL && "Memory exhausted");
+  EUTRA_CGI->ran_param_val.flag_false->type = BIT_STRING_RAN_PARAMETER_VALUE;
+
+  set_EUTRA_CGI(EUTRA_CGI, targetcell);
+
+  return;
+}
+
+static void gen_List_of_PDU_sessions_for_handover(seq_ran_param_t* List_PDU_sessions_ho) 
+{
+  int num_PDU_session = 1;
+
+  List_PDU_sessions_ho->ran_param_id = LIST_OF_PDU_SESSIONS_FOR_HANDOVER_8_4_4_1;
+  List_PDU_sessions_ho->ran_param_val.type = LIST_RAN_PARAMETER_VAL_TYPE;
+  List_PDU_sessions_ho->ran_param_val.lst = calloc(1, sizeof(ran_param_list_t));
+  assert(List_PDU_sessions_ho->ran_param_val.lst != NULL && "Memory exhausted");
+  List_PDU_sessions_ho->ran_param_val.lst->sz_lst_ran_param = num_PDU_session;
+  List_PDU_sessions_ho->ran_param_val.lst->lst_ran_param = calloc(num_PDU_session, sizeof(lst_ran_param_t));
+  assert(List_PDU_sessions_ho->ran_param_val.lst->lst_ran_param != NULL && "Memory exhausted");
+
+  lst_ran_param_t* PDU_session_item = &List_PDU_sessions_ho->ran_param_val.lst->lst_ran_param[0];
+  PDU_session_item->ran_param_struct.sz_ran_param_struct = 2;
+  PDU_session_item->ran_param_struct.ran_param_struct = calloc(2, sizeof(seq_ran_param_t));
+  assert(PDU_session_item->ran_param_struct.ran_param_struct != NULL && "Memory exhausted");
+
+  seq_ran_param_t* PDU_Session_ID = &PDU_session_item->ran_param_struct.ran_param_struct[0];
+  PDU_Session_ID->ran_param_id = PDU_SESSION_ID_8_4_4_1;
+  PDU_Session_ID->ran_param_val.type = ELEMENT_KEY_FLAG_TRUE_RAN_PARAMETER_VAL_TYPE;
+  PDU_Session_ID->ran_param_val.flag_false = calloc(1, sizeof(ran_parameter_value_t));
+  assert(PDU_Session_ID->ran_param_val.flag_false != NULL && "Memory exhausted");
+  PDU_Session_ID->ran_param_val.flag_false->type = OCTET_STRING_RAN_PARAMETER_VALUE;
+
+  char pduid_str[2];
+  snprintf(pduid_str, sizeof(pduid_str), "%d", PDU_SESSION_ID_5);
+  byte_array_t pduid = cp_str_to_ba(pduid_str);
+  PDU_Session_ID->ran_param_val.flag_false->octet_str_ran.len = pduid.len;
+  PDU_Session_ID->ran_param_val.flag_false->octet_str_ran.buf = pduid.buf;
+
+  seq_ran_param_t* List_of_QoS_flows = &PDU_session_item->ran_param_struct.ran_param_struct[1];
+  List_of_QoS_flows->ran_param_id = LIST_OF_QOS_FLOWS_IN_THE_PDU_SESSION_8_4_4_1;
+  List_of_QoS_flows->ran_param_val.type = LIST_RAN_PARAMETER_VAL_TYPE;
+  List_of_QoS_flows->ran_param_val.lst = calloc(1, sizeof(ran_param_list_t));
+  assert(List_of_QoS_flows->ran_param_val.lst != NULL && "Memory exhausted");
+  List_of_QoS_flows->ran_param_val.lst->sz_lst_ran_param = 1;
+  List_of_QoS_flows->ran_param_val.lst->lst_ran_param = calloc(1, sizeof(lst_ran_param_t));
+  assert(List_of_QoS_flows->ran_param_val.lst->lst_ran_param != NULL && "Memory exhausted");
+
+  lst_ran_param_t* QoS_flow_Item = &List_of_QoS_flows->ran_param_val.lst->lst_ran_param[0];
+  QoS_flow_Item->ran_param_struct.sz_ran_param_struct = 1;
+  QoS_flow_Item->ran_param_struct.ran_param_struct = calloc(1, sizeof(seq_ran_param_t));
+  assert(QoS_flow_Item->ran_param_struct.ran_param_struct != NULL && "Memory exhausted");
+
+  seq_ran_param_t* QoS_Flow_Id = &QoS_flow_Item->ran_param_struct.ran_param_struct[0];
+  QoS_Flow_Id->ran_param_id = QOS_FLOW_IDENTIFIER_8_4_4_1;
+  QoS_Flow_Id->ran_param_val.type = ELEMENT_KEY_FLAG_TRUE_RAN_PARAMETER_VAL_TYPE;
+  QoS_Flow_Id->ran_param_val.flag_false = calloc(1, sizeof(ran_parameter_value_t));
+  assert(QoS_Flow_Id->ran_param_val.flag_false != NULL && "Memory exhausted");
+  QoS_Flow_Id->ran_param_val.flag_false->type = OCTET_STRING_RAN_PARAMETER_VALUE;
+
+  char qosid_str[3];
+  snprintf(qosid_str, sizeof(qosid_str), "%d", QOS_FLOW_ID_1);
+  byte_array_t qosid = cp_str_to_ba(qosid_str);
+  QoS_Flow_Id->ran_param_val.flag_false->octet_str_ran.len = qosid.len;
+  QoS_Flow_Id->ran_param_val.flag_false->octet_str_ran.buf = qosid.buf;
+
+  return;
+}
+
+static void gen_List_of_DRBs_for_handover(seq_ran_param_t* List_DRBs_ho) 
+{
+  int num_DRBs = 1;
+  
+  List_DRBs_ho->ran_param_id = LIST_OF_DRBS_FOR_HANDOVER_8_4_4_1;
+  List_DRBs_ho->ran_param_val.type = LIST_RAN_PARAMETER_VAL_TYPE;
+  List_DRBs_ho->ran_param_val.lst = calloc(1, sizeof(ran_param_list_t));
+  assert(List_DRBs_ho->ran_param_val.lst != NULL && "Memory exhausted");
+  List_DRBs_ho->ran_param_val.lst->sz_lst_ran_param = num_DRBs;
+  List_DRBs_ho->ran_param_val.lst->lst_ran_param = calloc(num_DRBs, sizeof(lst_ran_param_t));
+  assert(List_DRBs_ho->ran_param_val.lst->lst_ran_param != NULL && "Memory exhausted");
+
+  lst_ran_param_t* DRB_item_ho = (lst_ran_param_t*)&List_DRBs_ho->ran_param_val.strct->ran_param_struct[0];
+
+  DRB_item_ho->ran_param_struct.sz_ran_param_struct = 2;
+  DRB_item_ho->ran_param_struct.ran_param_struct = calloc(2, sizeof(seq_ran_param_t));
+  assert(DRB_item_ho->ran_param_struct.ran_param_struct != NULL && "Memory exhausted");
+
+  seq_ran_param_t* DRB_ID = &DRB_item_ho->ran_param_struct.ran_param_struct[0];
+  DRB_ID->ran_param_id = DRB_ID_8_4_4_1;
+  DRB_ID->ran_param_val.type = ELEMENT_KEY_FLAG_TRUE_RAN_PARAMETER_VAL_TYPE;
+  DRB_ID->ran_param_val.flag_false = calloc(1, sizeof(ran_parameter_value_t));
+  assert(DRB_ID->ran_param_val.flag_false != NULL && "Memory exhausted");
+  DRB_ID->ran_param_val.flag_false->type = OCTET_STRING_RAN_PARAMETER_VALUE;
+  char DRB_ID_str[] = "3";
+  byte_array_t drpID = cp_str_to_ba(DRB_ID_str);
+  DRB_ID->ran_param_val.flag_false->octet_str_ran.len = drpID.len;
+  DRB_ID->ran_param_val.flag_false->octet_str_ran.buf = drpID.buf;
+
+  seq_ran_param_t* List_of_QoS_flows = &DRB_item_ho->ran_param_struct.ran_param_struct[1];
+  List_of_QoS_flows->ran_param_id = LIST_OF_QOS_FLOWS_IN_THE_DRB_8_4_4_1;
+  List_of_QoS_flows->ran_param_val.type = LIST_RAN_PARAMETER_VAL_TYPE;
+  List_of_QoS_flows->ran_param_val.lst = calloc(1, sizeof(ran_param_list_t));
+  assert(List_of_QoS_flows->ran_param_val.lst != NULL && "Memory exhausted");
+  List_of_QoS_flows->ran_param_val.lst->sz_lst_ran_param = 1;
+  List_of_QoS_flows->ran_param_val.lst->lst_ran_param = calloc(1, sizeof(lst_ran_param_t));
+  assert(List_of_QoS_flows->ran_param_val.lst->lst_ran_param != NULL && "Memory exhausted");
+
+  lst_ran_param_t* QoS_flow_Item = &List_of_QoS_flows->ran_param_val.lst->lst_ran_param[0];
+  QoS_flow_Item->ran_param_struct.sz_ran_param_struct = 1;
+  QoS_flow_Item->ran_param_struct.ran_param_struct = calloc(1, sizeof(seq_ran_param_t));
+  assert(QoS_flow_Item->ran_param_struct.ran_param_struct != NULL && "Memory exhausted");
+
+  seq_ran_param_t* QoS_Flow_Id = &QoS_flow_Item->ran_param_struct.ran_param_struct[0];
+  QoS_Flow_Id->ran_param_id = QOS_FLOW_IDENTIFIER_8_4_4_1;
+  QoS_Flow_Id->ran_param_val.type = ELEMENT_KEY_FLAG_TRUE_RAN_PARAMETER_VAL_TYPE;
+  QoS_Flow_Id->ran_param_val.flag_false = calloc(1, sizeof(ran_parameter_value_t));
+  assert(QoS_Flow_Id->ran_param_val.flag_false != NULL && "Memory exhausted");
+  QoS_Flow_Id->ran_param_val.flag_false->type = OCTET_STRING_RAN_PARAMETER_VALUE;
+  char QFI_str[] = "10";
+  byte_array_t QFI = cp_str_to_ba(QFI_str);
+  QoS_Flow_Id->ran_param_val.flag_false->octet_str_ran.len = QFI.len;
+  QoS_Flow_Id->ran_param_val.flag_false->octet_str_ran.buf = QFI.buf;
+
+  return;
+}
+
+static void gen_List_of_Secondary_cells_to_be_setup(seq_ran_param_t* List_num_2ndCells) 
+{
+  int num_2ndCells = 1;
+  
+  List_num_2ndCells->ran_param_id = LIST_OF_SECONDARY_CELLS_TO_BE_SETUP_8_4_4_1;
+  List_num_2ndCells->ran_param_val.type = LIST_RAN_PARAMETER_VAL_TYPE;
+  List_num_2ndCells->ran_param_val.lst = calloc(1, sizeof(ran_param_list_t));
+  assert(List_num_2ndCells->ran_param_val.lst != NULL && "Memory exhausted");
+  List_num_2ndCells->ran_param_val.lst->sz_lst_ran_param = num_2ndCells;
+  List_num_2ndCells->ran_param_val.lst->lst_ran_param = calloc(num_2ndCells, sizeof(lst_ran_param_t));
+  assert(List_num_2ndCells->ran_param_val.lst->lst_ran_param != NULL && "Memory exhausted");
+
+  lst_ran_param_t* secCell_item = (lst_ran_param_t*)&List_num_2ndCells->ran_param_val.strct->ran_param_struct[0];
+
+  secCell_item->ran_param_struct.sz_ran_param_struct = 1;
+  secCell_item->ran_param_struct.ran_param_struct = calloc(1, sizeof(seq_ran_param_t));
+  assert(secCell_item->ran_param_struct.ran_param_struct != NULL && "Memory exhausted");
+
+  seq_ran_param_t* secCell_Id = &secCell_item->ran_param_struct.ran_param_struct[0];
+  secCell_Id->ran_param_id = SECONDARY_CELL_ID_8_4_4_1;
+  secCell_Id->ran_param_val.type = ELEMENT_KEY_FLAG_FALSE_RAN_PARAMETER_VAL_TYPE;
+  secCell_Id->ran_param_val.flag_false = calloc(1, sizeof(ran_parameter_value_t));
+  assert(secCell_Id->ran_param_val.flag_false != NULL && "Memory exhausted");
+  secCell_Id->ran_param_val.flag_false->type = OCTET_STRING_RAN_PARAMETER_VALUE;
+  char cellID_str[] = "0";
+  byte_array_t QFI = cp_str_to_ba(cellID_str);
+  secCell_Id->ran_param_val.flag_false->octet_str_ran.len = QFI.len;
+  secCell_Id->ran_param_val.flag_false->octet_str_ran.buf = QFI.buf;
+
+  return;
+}
+
+static e2sm_rc_ctrl_msg_frmt_1_t gen_rc_ctrl_msg_frmt_1_Handover_Control(char targetcell) 
+{
+  e2sm_rc_ctrl_msg_frmt_1_t dst = {0};
+
+  dst.sz_ran_param = 4;
+  dst.ran_param = calloc(4, sizeof(seq_ran_param_t));
+  assert(dst.ran_param != NULL && "Memory exhausted");
+
+  gen_Target_Primary_Cell_ID(&dst.ran_param[0], targetcell);
+  gen_List_of_PDU_sessions_for_handover(&dst.ran_param[1]);
+  gen_List_of_DRBs_for_handover(&dst.ran_param[2]);
+  gen_List_of_Secondary_cells_to_be_setup(&dst.ran_param[3]);
+
+  return dst;
+}
+
+static e2sm_rc_ctrl_msg_t gen_handover_rc_ctrl_msg(e2sm_rc_ctrl_msg_e msg_frmt, uint8_t targetcell) 
+{
+  e2sm_rc_ctrl_msg_t dst = {0};
+
+  if (msg_frmt == FORMAT_1_E2SM_RC_CTRL_MSG) 
+  {
+    dst.format = msg_frmt;
+    dst.frmt_1 = gen_rc_ctrl_msg_frmt_1_Handover_Control(targetcell);
+  } else 
+  {
+    assert(0 != 0 && "not implemented the fill func for this ctrl msg frmt");
+  }
+
+  return dst;
+}
+
+static ue_id_e2sm_t gen_rc_ue_id(ue_id_e2sm_e type, int ueid) 
+{
+  ue_id_e2sm_t ue_id = {0};
+  if (type == GNB_UE_ID_E2SM) 
+  {
+    ue_id.type = GNB_UE_ID_E2SM;
+    ue_id.gnb.ran_ue_id = (uint64_t*)malloc(sizeof(uint64_t));
+    *(ue_id.gnb.ran_ue_id) = ueid;
+  } else 
+  {
+    assert(0 != 0 && "not supported UE ID type");
+  }
+  return ue_id;
+}
+
+static bool eq_sm(sm_ran_function_t const* elem, int const id) 
+{
+  if (elem->id == id)
+    return true;
+
+  return false;
+}
+
+// ============================================
+// Main Handover Loop - SIMPLIFIED
+// ============================================
+void forEachCell(Callback targetCellFinding, Callback cbHOAction, callback_data_t data) 
+{
+    printf("\n=== Checking All Cells for Handover Opportunities ===\n");
+
+    // ✅ Single pass: process ALL cells
+    for (int i = 0; i < MAX_REGISTERED_CELLS; i++) 
+    {
+        if (!cells_sinr_map[i].is_registered || cells_sinr_map[i].sinrMap == NULL) {
+            continue;
+        }
+        
+        struct SINR_Map* cell = cells_sinr_map[i].sinrMap;
+        
+        printf("\n--- Cell %d: %zu UEs connected ---\n", 
+               cell->cellID, cell->numOfConnectedUEs);
+
+        // Check each UE in this cell
+        for (int j = 0; j < MAX_REGISTERED_UES; j++) {
+            if (!cell->connectedUEs[j].is_available || 
+                cell->connectedUEs[j].neighCells == NULL) {
+                continue;
+            }
+
+            // ✅ Skip only if handover already in progress
+            if (cell->connectedUEs[j].ho_context.state != HO_STATE_IDLE) {
+                printf("  UE %d: handover in progress (state=%s)\n",
+                       cell->connectedUEs[j].ueID,
+                       ho_state_to_string(cell->connectedUEs[j].ho_context.state));
+                continue;
+            }
+
+            callback_data_t ue_data = {
+                .nodes = data.nodes,
+                .neighCells = cell->connectedUEs[j].neighCells,
+                .ueID = cell->connectedUEs[j].ueID,
+                .frmCurntCell = cell->cellID
+            };
+
+            // Find target cell
+            uint8_t target = targetCellFinding(ue_data);
+            
+            if (target != 0) {
+                ue_data.toTargetCell = target;
+                
+                // ✅ Trigger handover immediately
+                if (cbHOAction(ue_data)) {
+                    cell->connectedUEs[j].ho_context.state = HO_STATE_DECISION_MADE;
+                    printf("  ✅ Handover triggered for UE %d: Cell %d → Cell %d\n",
+                           ue_data.ueID, cell->cellID, target);
+                }
+            }
+        }
+    }
+}
+
+uint16_t doHandoverAction(callback_data_t data)
+{
+    char trgtCell = '0' + data.toTargetCell;
+    
+    if (!(trgtCell > '0' && trgtCell <= '9')) {
+        printf("[xApp] Invalid target cell %c\n", trgtCell);
+        return 0;
+    }
+    
+    struct SINRServingValues* ue = get_UE(data.frmCurntCell, data.ueID);
+    if (ue == NULL) {
+        printf("[xApp] Cannot find UE %d in cell %d\n",
+               data.ueID, data.frmCurntCell);
+        return 0;
+    }
+    
+    // Check only timeout (not max attempts for unlimited retries)
+    if (ue->ho_context.state == HO_STATE_IN_PROGRESS) {
+        time_t now = time(NULL);
+        double elapsed = difftime(now, ue->ho_context.command_time);
+        
+        if (elapsed < MAX_HANDOVER_TIMEOUT_SEC) {
+            printf("[xApp] Handover in progress for UE %d (%.1fs elapsed)\n",
+                   data.ueID, elapsed);
+            return 0;
+        } else {
+            printf("[xApp] Handover timeout for UE %d, retrying...\n", data.ueID);
+            ue->ho_context.state = HO_STATE_IDLE;
+        }
+    }
+    
+    // Prepare RC Control Request
+    rc_ctrl_req_data_t rc_ctrl = {0};
+    ue_id_e2sm_t ue_id_1 = gen_rc_ue_id(GNB_UE_ID_E2SM, data.ueID);
+    
+    rc_ctrl.hdr = gen_rc_ctrl_hdr(FORMAT_1_E2SM_RC_CTRL_HDR, ue_id_1,
+                                   CONNECTED_MODE_MOBILITY, HANDOVER_CONTROL_7_6_4_1);
+    rc_ctrl.msg = gen_handover_rc_ctrl_msg(FORMAT_1_E2SM_RC_CTRL_MSG, trgtCell);
+    
+    ue->ho_context.state = HO_STATE_COMMAND_SENT;
+    ue->ho_context.source_cell = data.frmCurntCell;
+    ue->ho_context.target_cell = data.toTargetCell;
+    ue->ho_context.command_time = time(NULL);
+    ue->ho_context.attempts++;
+    
+    printf("\n[xApp] ═══════════════════════════════════════\n");
+    printf("[xApp] HANDOVER COMMAND #%d\n", ue->ho_context.attempts);
+    printf("[xApp] UE %d: Cell %d → Cell %d\n",
+           data.ueID, data.frmCurntCell, data.toTargetCell);
+    printf("[xApp] ═══════════════════════════════════════\n");
+    
+    bool handover_sent = false;
+    for (size_t i = 0; i < (*data.nodes).len; ++i) {
+        sm_ans_xapp_t ans = control_sm_xapp_api(&(*data.nodes).n[i].id, SM_RC_ID, &rc_ctrl);
+        
+        if (ans.success) {
+            handover_sent = true;
+            ue->ho_context.state = HO_STATE_IN_PROGRESS;
+            printf("[xApp] ✓ Command sent to node %zu\n", i);
+        } else {
+            printf("[xApp] ✗ Failed to send to node %zu\n", i);
+        }
+    }
+    
+    free_rc_ctrl_req_data(&rc_ctrl);
+    
+    if (handover_sent) {
+        printf("[xApp] Status: SENT\n\n");
+        return 1;
+    } else {
+        printf("[xApp] Status: FAILED\n\n");
+        ue->ho_context.state = HO_STATE_IDLE;
+        return 0;
+    }
+}
+
+// ============================================
+// Main Function - SIMPLIFIED
+// ============================================
+int main(int argc, char* argv[]) 
+{
+    fr_args_t args = init_fr_args(argc, argv);
+    init_xapp_api(&args);
+    sleep(1);
+
+    e2_node_arr_xapp_t nodes = e2_nodes_xapp_api();
+    defer({ free_e2_node_arr_xapp(&nodes); });
+    assert(nodes.len > 0);
+    printf("Connected E2 nodes = %d\n", nodes.len);
+
+    pthread_mutexattr_t attr = {0};
+    int rc = pthread_mutex_init(&mtx, &attr);
+    assert(rc == 0);
+
+    // Start KPM subscription
+    sm_ans_xapp_t* hndl = calloc(nodes.len, sizeof(sm_ans_xapp_t));
+    assert(hndl != NULL);
+
+    int const KPM_ran_function = 2;
+    for (size_t i = 0; i < nodes.len; ++i) 
+    {
+        e2_node_connected_xapp_t* n = &nodes.n[i];
+        size_t const idx = find_sm_idx(n->rf, n->len_rf, eq_sm, KPM_ran_function);
+
+        if (n->rf[idx].defn.kpm.ric_report_style_list != NULL) 
+        {
+            kpm_sub_data_t kpm_sub = gen_kpm_subs(&n->rf[idx].defn.kpm);
+            hndl[i] = report_sm_xapp_api(&n->id, KPM_ran_function, &kpm_sub, sm_cb_kpm);
+            assert(hndl[i].success == true);
+            free_kpm_sub_data(&kpm_sub);
+        }
+    }
+
+    printf("Waiting for KPM measurements...\n");
+    sleep(2);
+
+    callback_data_t context = {.nodes = &nodes};
+
+    // ✅ Main handover loop
+    while (1) {
+        printf("\n=== Handover Check Cycle ===\n");
+
+        pthread_mutex_lock(&mtx);
+        
+        // ✅ Only 2 callbacks: find target + execute handover
+        forEachCell(getTargetCellID, doHandoverAction, context);
+        
+        pthread_mutex_unlock(&mtx);
+
+        sleep(2);  // ✅ Check every 2 seconds
+    }
+
+    // Cleanup
+    for (int i = 0; i < nodes.len; ++i) 
+    {
+        if (hndl[i].success == true)
+            rm_report_sm_xapp_api(hndl[i].u.handle);
+    }
+    free(hndl);
+
+    while (try_stop_xapp_api() == false)
+        usleep(1000);
+
+    rc = pthread_mutex_destroy(&mtx);
+    assert(rc == 0);
+
+    printf("Pure Handover xApp completed\n");
+    return 0;
+}

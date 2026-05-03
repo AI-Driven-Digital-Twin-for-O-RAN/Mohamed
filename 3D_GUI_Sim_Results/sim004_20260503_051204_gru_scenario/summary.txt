@@ -1,0 +1,5 @@
+Simulation Results — 20260503_051204
+========================================
+Total handovers  : 88
+Ping-pong events : 0
+Ping-pong rate   : 0.0%

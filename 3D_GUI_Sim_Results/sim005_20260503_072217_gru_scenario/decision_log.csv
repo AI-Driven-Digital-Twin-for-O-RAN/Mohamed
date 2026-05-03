@@ -1,0 +1,12 @@
+uuid,sim,time_sec,ue_id,from_cell,to_cell,is_correct
+72af4ac6-3c85-4204-9b7c-a1ff50ea94a3,sim005,2.24352,10,4,3,True
+e28c3bad-fafd-4b8f-b19f-8caa7954584e,sim005,2.74002,6,3,8,True
+55e8d730-cdd4-4174-81bc-9ad7d58e0072,sim005,2.74927,7,4,2,True
+c7fd9285-edec-4642-8cc4-bf147a98209d,sim005,2.83727,15,6,7,True
+7a173a31-6d53-48bd-a801-21d2b6c8ae9c,sim005,2.93702,11,5,2,True
+b572fc8c-dde0-43c2-a4b6-71c752f1b853,sim005,2.94052,5,3,4,True
+6b1d1afd-47c8-46f8-9d3c-45e2f2163ebd,sim005,3.14452,3,2,6,True
+1f5aefee-04b9-4bbc-a4db-0cd4132eaa13,sim005,3.15352,17,7,8,True
+4ee11bec-50f4-4d28-9766-d80e8725fa12,sim005,3.75052,9,4,2,True
+5fa1361d-5553-4da6-a98c-c7b8be77e39b,sim005,3.75877,1,5,6,True
+68cb1c1b-8b42-430c-8c65-562c982c859f,sim005,17.0433,7,2,7,True

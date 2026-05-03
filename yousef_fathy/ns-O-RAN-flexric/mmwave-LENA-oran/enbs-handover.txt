@@ -1,0 +1,5 @@
+set label "mmW-2" at 3000,3000 left font "Helvetica,8" textcolor rgb "red" front point pt 4 ps 0.3 lc rgb "red" offset 0,0
+set label "mmW-3" at 3500,3000 left font "Helvetica,8" textcolor rgb "red" front point pt 4 ps 0.3 lc rgb "red" offset 0,0
+set label "mmW-4" at 3000,3500 left font "Helvetica,8" textcolor rgb "red" front point pt 4 ps 0.3 lc rgb "red" offset 0,0
+set label "mmW-5" at 2500,3000 left font "Helvetica,8" textcolor rgb "red" front point pt 4 ps 0.3 lc rgb "red" offset 0,0
+set label "mmW-6" at 3000,2500 left font "Helvetica,8" textcolor rgb "red" front point pt 4 ps 0.3 lc rgb "red" offset 0,0

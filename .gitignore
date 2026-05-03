@@ -1,0 +1,30 @@
+# ── Compiled build artifacts (can be recompiled from source) ──
+yousef_fathy/flexric/build/
+yousef_fathy/ns-O-RAN-flexric/mmwave-LENA-oran/build/
+yousef_fathy/ns-O-RAN-flexric/mmwave-LENA-oran/cmake-cache/
+yousef_fathy/swig/
+
+# ── Node.js ──
+5g-gui-v2/node_modules/
+5g-gui-v2/dist/
+5g-gui-v2.zip
+
+# ── Large simulation log files (regenerated every run) ──
+3D_GUI_Sim_Results/*/simulation.log
+3D_GUI_Sim_Results/*/xapp.log
+3D_GUI_Sim_Results/*/gru.log
+3D_GUI_Sim_Results/*/pusher.log
+3D_GUI_Sim_Results/*/flexric.log
+
+# ── Python cache ──
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# ── Zip backups ──
+*.zip
+
+# ── OS files ──
+.DS_Store
+Thumbs.db

@@ -1,0 +1,19 @@
+Simulation saved: 26 أبر, 2026 EEST 07:33:43 ص
+Label: sim001_awf_negHOM_43s
+Folder: 1_20260426_073343_sim001_awf_negHOM_43s
+
+load_balance_kpis.csv lines:  309
+lb_handover_xapp.csv lines:   858
+handover.csv lines:           859
+
+=== Handover Summary ===
+Total HOs: 858   Successful: 429   Ping-pong: 301 (35.1%)
+
+=== Cell Load Distribution (avg UE count over 44s) ===
+  Cell 2: avg=6.8 UEs  final=6 UEs
+  Cell 3: avg=3.0 UEs  final=3 UEs
+  Cell 4: avg=1.0 UEs  final=1 UEs
+  Cell 5: avg=3.8 UEs  final=3 UEs
+  Cell 6: avg=2.2 UEs  final=3 UEs
+  Cell 7: avg=1.9 UEs  final=2 UEs
+  Cell 8: avg=1.2 UEs  final=2 UEs

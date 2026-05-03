@@ -1,0 +1,1076 @@
+[0/2] Re-checking globbed directories...
+ninja: no work to do.
+bufferSize 10 OutageThreshold -5 HandoverMode NoAuto e2TermIp 127.0.0.1 enableE2FileLogging false E2 Function ID 2
+e2lteEnabled true e2nrEnabled true e2du true e2cuCp true e2cuUp true controlFilename  indicationPeriodicity 0.04
+Created 6 fast-moving UEs (10-20 m/s) and 4 very slow-moving UEs (0.1-0.5 m/s)
+Handover log file created: handover_log.csv
+Handover callbacks connected
+Simulation time is 1000 seconds 
+Total energy consumption for mmWave cell 2: 0J at time 0, diff from last measurement is: 0J
+Total energy consumption for mmWave cell 3: 0J at time 0, diff from last measurement is: 0J
+Total energy consumption for mmWave cell 4: 0J at time 0, diff from last measurement is: 0J
+Total energy consumption for mmWave cell 5: 0J at time 0, diff from last measurement is: 0J
+Total energy consumption for mmWave cell 2: 68.0387J at time 0.1, diff from last measurement is: 68.0387J
+Total energy consumption for mmWave cell 3: 68.0387J at time 0.1, diff from last measurement is: 68.0387J
+Total energy consumption for mmWave cell 4: 68.0387J at time 0.1, diff from last measurement is: 68.0387J
+Total energy consumption for mmWave cell 5: 68.0387J at time 0.1, diff from last measurement is: 68.0387J
+Position of UE with IMSI 1 is 2281.95:3082.36:1.5 at time 0.1, UE connected to Cell: 1
+Position of UE with IMSI 2 is 2284.84:1733.99:1.5 at time 0.1, UE connected to Cell: 3
+Position of UE with IMSI 3 is 2283.61:2537.14:1.5 at time 0.1, UE connected to Cell: 4
+Position of UE with IMSI 4 is 1981.18:1508.71:1.5 at time 0.1, UE connected to Cell: 5
+Position of UE with IMSI 5 is 1983.27:1713.66:1.5 at time 0.1, UE connected to Cell: 2
+Position of UE with IMSI 6 is 1983.14:2477.91:1.5 at time 0.1, UE connected to Cell: 4
+Position of UE with IMSI 7 is 2525.35:1900:1.5 at time 0.1, UE connected to Cell: 3
+Position of UE with IMSI 8 is 2023.38:1900:1.5 at time 0.1, UE connected to Cell: 2
+Position of UE with IMSI 9 is 1773.73:1400:1.5 at time 0.1, UE connected to Cell: 5
+Position of UE with IMSI 10 is 1777.63:2250:1.5 at time 0.1, UE connected to Cell: 4
+[INFO ] %%about to register e2sm func desc for 2
+
+[INFO ] %%about to register callback for subscription for func_id 2
+[INFO ] %%about to register e2sm func desc for 3
+
+[INFO ] %%about to register callback for e2sm for func_id 3
+[INFO ] %%about to register callback function for e2sm for cb_id 1
+iam here iam in for [INFO ] %%about to register e2sm func desc for 2
+
+[INFO ] %%about to register callback for subscription for func_id 2
+[INFO ] %%about to register e2sm func desc for 3
+
+[INFO ] %%about to register callback for e2sm for func_id 3
+[INFO ] %%about to register callback function for e2sm for cb_id 1
+iam here iam in for [INFO ] %%about to register e2sm func desc for 2
+
+[INFO ] %%about to register callback for subscription for func_id 2
+[INFO ] %%about to register e2sm func desc for 3
+
+[INFO ] %%about to register callback for e2sm for func_id 3
+[INFO ] %%about to register callback function for e2sm for cb_id 1
+iam here iam in for [INFO ] %%about to register e2sm func desc for 2
+
+[INFO ] %%about to register callback for subscription for func_id 2
+[INFO ] %%about to register e2sm func desc for 3
+
+[INFO ] %%about to register callback for e2sm for func_id 3
+[INFO ] %%about to register callback function for e2sm for cb_id 1
+iam here iam in for [INFO ] %%about to register e2sm func desc for 2
+
+[INFO ] %%about to register callback for subscription for func_id 2
+[INFO ] %%about to register e2sm func desc for 3
+
+[INFO ] %%about to register callback for e2sm for func_id 3
+[INFO ] %%about to register callback function for e2sm for cb_id 1
+[UNCON] Start E2 Agent (E2 Simulator)
+[UNCON] Current Log level is 2
+[INFO ] [SCTP] Binding client socket with source port 38471
+[INFO ] [SCTP] Connecting to server at 127.0.0.1:36421 ...
+[INFO ] [SCTP] Connection established
+[INFO ] About to register a function
+[INFO ] About to register a function
+[INFO ] [SCTP] Sent E2-SETUP-REQUEST
+[INFO ] [E2AP] Received SETUP-RESPONSE-SUCCESS
+[UNCON] Start E2 Agent (E2 Simulator)
+[UNCON] Current Log level is 2
+[INFO ] [SCTP] Binding client socket with source port 38472
+[INFO ] [SCTP] Connecting to server at 127.0.0.1:36421 ...
+[INFO ] [SCTP] Connection established
+[INFO ] About to register a function
+[INFO ] About to register a function
+[INFO ] [SCTP] Sent E2-SETUP-REQUEST
+[INFO ] [E2AP] Received SETUP-RESPONSE-SUCCESS
+[UNCON] Start E2 Agent (E2 Simulator)
+[UNCON] Current Log level is 2
+[INFO ] [SCTP] Binding client socket with source port 38473
+[INFO ] [SCTP] Connecting to server at 127.0.0.1:36421 ...
+[INFO ] [SCTP] Connection established
+[INFO ] About to register a function
+[INFO ] About to register a function
+[INFO ] [SCTP] Sent E2-SETUP-REQUEST
+[INFO ] [E2AP] Received SETUP-RESPONSE-SUCCESS
+[UNCON] Start E2 Agent (E2 Simulator)
+[UNCON] Current Log level is 2
+[INFO ] [SCTP] Binding client socket with source port 38474
+[INFO ] [SCTP] Connecting to server at 127.0.0.1:36421 ...
+[INFO ] [SCTP] Connection established
+[INFO ] About to register a function
+[INFO ] About to register a function
+[INFO ] [SCTP] Sent E2-SETUP-REQUEST
+[INFO ] [E2AP] Received SETUP-RESPONSE-SUCCESS
+[UNCON] Start E2 Agent (E2 Simulator)
+[UNCON] Current Log level is 2
+[INFO ] [SCTP] Binding client socket with source port 38475
+[INFO ] [SCTP] Connecting to server at 127.0.0.1:36421 ...
+[INFO ] [SCTP] Connection established
+[INFO ] About to register a function
+[INFO ] About to register a function
+[INFO ] [SCTP] Sent E2-SETUP-REQUEST
+[INFO ] [E2AP] Received SETUP-RESPONSE-SUCCESS
+[INFO ] [E2AP] Received RIC-SUBSCRIPTION-REQUEST
+[INFO ] %%we are getting the subscription callback for func id 2
+Size of subsDetails_r: 0
+Size of subsDetails_r: 0
+Action Definition Format: 4
+Event Trigger Definition Format: 1
+Granularity Period: 100
+Measurement Label: No Label
+Measurement Name: 
+RIC Style Type: 4
+Reporting Period: 100
+Test Condition Expression: 2
+Test Condition Type: 3
+Test Condition Value: 40
+Size of subsDetails_r: 10
+[INFO ] Send data to client_fd 14
+[INFO ] [E2AP] Received RIC-SUBSCRIPTION-REQUEST
+[INFO ] %%we are getting the subscription callback for func id 2
+Size of subsDetails_r: 0
+Size ofTotal energy consumption for mmWave cell 2: 190.657J at time 0.2, diff from last measurement is: 122.618J
+Total energy consumption for mmWave cell 3: 192.355J at time 0.2, diff from last measurement is: 124.317J
+Total energy consumption for mmWave cell 4: 180.935J at time 0.2, diff from last measurement is: 112.896J
+Total energy consumption for mmWave cell 5: 175.958J at time 0.2, diff from last measurement is: 107.919J
+Position of UE with IMSI 1 is 2263.89:3082.36:1.5 at time 0.2, UE connected to Cell: 1
+Position of UE with IMSI 2 is 2269.68:1733.99:1.5 at time 0.2, UE connected to Cell: 3
+Position of UE with IMSI 3 is 2267.21:2537.14:1.5 at time 0.2, UE connected to Cell: 4
+Position of UE with IMSI 4 is 1962.36:1508.71:1.5 at time 0.2, UE connected to Cell: 5
+Position of UE with IMSI 5 is 1966.55:1713.66:1.5 at time 0.2, UE connected to Cell: 2
+Position of UE with IMSI 6 is 1966.28:2477.91:1.5 at time 0.2, UE connected to Cell: 4
+Position of UE with IMSI 7 is 2550.69:1900:1.5 at time 0.2, UE connected to Cell: 3
+Position of UE with IMSI 8 is 2046.75:1900:1.5 at time 0.2, UE connected to Cell: 2
+Position of UE with IMSI 9 is 1797.46:1400:1.5 at time 0.2, UE connected to Cell: 5
+Position of UE with IMSI 10 is 1805.26:2250:1.5 at time 0.2, UE connected to Cell: 4
+Total energy consumption for mmWave cell 2: 298.811J at time 0.3, diff from last measurement is: 108.154J
+Total energy consumption for mmWave cell 3: 323.523J at time 0.3, diff from last measurement is: 131.168J
+Total energy consumption for mmWave cell 4: 350.986J at time 0.3, diff from last measurement is: 170.051J
+Total energy consumption for mmWave cell 5: 294.007J at time 0.3, diff from last measurement is: 118.049J
+Position of UE with IMSI 1 is 2245.84:3082.36:1.5 at time 0.3, UE connected to Cell: 1
+Position of UE with IMSI 2 is 2254.52:1733.99:1.5 at time 0.3, UE connected to Cell: 3
+Position of UE with IMSI 3 is 2250.82:2537.14:1.5 at time 0.3, UE connected to Cell: 4
+Position of UE with IMSI 4 is 1943.54:1508.71:1.5 at time 0.3, UE connected to Cell: 5
+Position of UE with IMSI 5 is 1949.82:1713.66:1.5 at time 0.3, UE connected to Cell: 2
+Position of UE with IMSI 6 is 1949.42:2477.91:1.5 at time 0.3, UE connected to Cell: 4
+Position of UE with IMSI 7 is 2576.04:1900:1.5 at time 0.3, UE connected to Cell: 3
+Position of UE with IMSI 8 is 2070.13:1900:1.5 at time 0.3, UE connected to Cell: 2
+Position of UE with IMSI 9 is 1821.2:1400:1.5 at time 0.3, UE connected to Cell: 5
+Position of UE with IMSI 10 is 1832.89:2250:1.5 at time 0.3, UE connected to Cell: 4
+Total energy consumption for mmWave cell 2: 422.014J at time 0.4, diff from last measurement is: 123.204J
+Total energy consumption for mmWave cell 3: 471.674J at time 0.4, diff from last measurement is: 148.151J
+Total energy consumption for mmWave cell 4: 505.693J at time 0.4, diff from last measurement is: 154.707J
+Total energy consumption for mmWave cell 5: 423.593J at time 0.4, diff from last measurement is: 129.586J
+Position of UE with IMSI 1 is 2227.79:3082.36:1.5 at time 0.4, UE connected to Cell: 1
+Position of UE with IMSI 2 is 2239.36:1733.99:1.5 at time 0.4, UE connected to Cell: 3
+Position of UE with IMSI 3 is 2234.42:2537.14:1.5 at time 0.4, UE connected to Cell: 4
+Position of UE with IMSI 4 is 1924.72:1508.71:1.5 at time 0.4, UE connected to Cell: 5
+Position of UE with IMSI 5 is 1933.09:1713.66:1.5 at time 0.4, UE connected to Cell: 2
+Position of UE with IMSI 6 is 1932.57:2477.91:1.5 at time 0.4, UE connected to Cell: 4
+Position of UE with IMSI 7 is 2601.39:1900:1.5 at time 0.4, UE connected to Cell: 3
+Position of UE with IMSI 8 is 2093.51:1900:1.5 at time 0.4, UE connected to Cell: 2
+Position of UE with IMSI 9 is 1844.93:1400:1.5 at time 0.4, UE connected to Cell: 5
+Position of UE with IMSI 10 is 1860.52:2250:1.5 at time 0.4, UE connected to Cell: 4
+Total energy consumption for mmWave cell 2: 551.19J at time 0.5, diff from last measurement is: 129.176J
+Total energy consumption for mmWave cell 3: 591.598J at time 0.5, diff from last measurement is: 119.924J
+Total energy consumption for mmWave cell 4: 660.518J at time 0.5, diff from last measurement is: 154.825J
+Total energy consumption for mmWave cell 5: 527.413J at time 0.5, diff from last measurement is: 103.82J
+Position of UE with IMSI 1 is 2209.73:3082.36:1.5 at time 0.5, UE connected to Cell: 1
+Position of UE with IMSI 2 is 2224.2:1733.99:1.5 at time 0.5, UE connected to Cell: 3
+Position of UE with IMSI 3 is 2218.03:2537.14:1.5 at time 0.5, UE connected to Cell: 4
+Position of UE with IMSI 4 is 1905.9:1508.71:1.5 at time 0.5, UE connected to Cell: 5
+Position of UE with IMSI 5 is 1916.36:1713.66:1.5 at time 0.5, UE connected to Cell: 2
+Position of UE with IMSI 6 is 1915.71:2477.91:1.5 at time 0.5, UE connected to Cell: 4
+Position of UE with IMSI 7 is 2626.74:1900:1.5 at time 0.5, UE connected to Cell: 3
+Position of UE with IMSI 8 is 2116.88:1900:1.5 at time 0.5, UE connected to Cell: 2
+Position of UE with IMSI 9 is 1868.66:1400:1.5 at time 0.5, UE connected to Cell: 5
+Position of UE with IMSI 10 is 1888.15:2250:1.5 at time 0.5, UE connected to Cell: 4
+Total energy consumption for mmWave cell 2: 702.562J at time 0.6, diff from last measurement is: 151.371J
+Total energy consumption for mmWave cell 3: 713.455J at time 0.6, diff from last measurement is: 121.857J
+Total energy consumption for mmWave cell 4: 824.888J at time 0.6, diff from last measurement is: 164.37J
+Total energy consumption for mmWave cell 5: 639.197J at time 0.6, diff from last measurement is: 111.784J
+Position of UE with IMSI 1 is 2191.68:3082.36:1.5 at time 0.6, UE connected to Cell: 1
+Position of UE with IMSI 2 is 2209.03:1733.99:1.5 at time 0.6, UE connected to Cell: 3
+Position of UE with IMSI 3 is 2201.64:2537.14:1.5 at time 0.6, UE connected to Cell: 4
+Position of UE with IMSI 4 is 1887.08:1508.71:1.5 at time 0.6, UE connected to Cell: 5
+Position of UE with IMSI 5 is 1899.64:1713.66:1.5 at time 0.6, UE connected to Cell: 2
+Position of UE with IMSI 6 is 1898.85:2477.91:1.5 at time 0.6, UE connected to Cell: 4
+Position of UE with IMSI 7 is 2652.08:1900:1.5 at time 0.6, UE connected to Cell: 3
+Position of UE with IMSI 8 is 2140.26:1900:1.5 at time 0.6, UE connected to Cell: 2
+Position of UE with IMSI 9 is 1892.39:1400:1.5 at time 0.6, UE connected to Cell: 5
+Position of UE with IMSI 10 is 1915.79:2250:1.5 at time 0.6, UE connected to Cell: 4
+Total energy consumption for mmWave cell 2: 827.522J at time 0.7, diff from last measurement is: 124.96J
+Total energy consumption for mmWave cell 3: 845.209J at time 0.7, diff from last measurement is: 131.754J
+Total energy consumption for mmWave cell 4: 988.204J at time 0.7, diff from last measurement is: 163.316J
+Total energy consumption for mmWave cell 5: 744.949J at time 0.7, diff from last measurement is: 105.752J
+Position of UE with IMSI 1 is 2173.62:3082.36:1.5 at time 0.7, UE connected to Cell: 1
+Position of UE with IMSI 2 is 2193.87:1733.99:1.5 at time 0.7, UE connected to Cell: 3
+Position of UE with IMSI 3 is 2185.24:2537.14:1.5 at time 0.7, UE connected to Cell: 4
+Position of UE with IMSI 4 is 1868.26:1508.71:1.5 at time 0.7, UE connected to Cell: 5
+Position of UE with IMSI 5 is 1882.91:1713.66:1.5 at time 0.7, UE connected to Cell: 2
+Position of UE with IMSI 6 is 1881.99:2477.91:1.5 at time 0.7, UE connected to Cell: 4
+Position of UE with IMSI 7 is 2677.43:1900:1.5 at time 0.7, UE connected to Cell: 3
+Position of UE with IMSI 8 is 2163.64:1900:1.5 at time 0.7, UE connected to Cell: 2
+Position of UE with IMSI 9 is 1916.13:1400:1.5 at time 0.7, UE connected to Cell: 5
+Position of UE with IMSI 10 is 1943.42:2250:1.5 at time 0.7, UE connected to Cell: 4
+ subsDetails_r: 0
+Action Definition Format: 4
+Event Trigger Definition Format: 1
+Granularity Period: 100
+Measurement Label: No Label
+Measurement Name: 
+RIC Style Type: 4
+Reporting Period: 100
+Test Condition Expression: 2
+Test Condition Type: 3
+Test Condition Value: 40
+Size of subsDetails_r: 10
+[INFO ] Send data to client_fd 13
+[INFO ] [E2AP] Received RIC-SUBSCRIPTION-REQUEST
+[INFO ] %%we are getting the subscription callback for func id 2
+Size of subsDetails_r: 0
+Size of subsDetails_r: 0
+Action Definition Format: 4
+Event Trigger Definition Format: 1
+Granularity Period: 100
+Measurement Label: No Label
+Measurement Name: 
+RIC Style Type: 4
+Reporting Period: 100
+Test Condition Expression: 2
+Test Condition Type: 3
+Test Condition Value: 40
+Size of subsDetails_r: 10
+[INFO ] Send data to client_fd 12
+[INFO ] [E2AP] Received RIC-SUBSCRIPTION-REQUEST
+[INFO ] %%we are getting the subscription callback for func id 2
+Size of subsDetails_r: 0
+Size of subsDetails_r: 0
+Action Definition Format: 4
+Event Trigger Definition Format: 1
+Granularity Period: 100
+Measurement Label: No Label
+Measurement Name: 
+RIC Style Type: 4
+Reporting Period: 100
+Test Condition Expression: 2
+Test Condition Type: 3
+Test Condition Value: 40
+Size of subsDetails_r: 10
+[INFO ] Send data to client_fd 11
+[INFO ] [E2AP] Received RIC-SUBSCRIPTION-REQUEST
+[INFO ] %%we are getting the subscription callback for func id 2
+Size of subsDetails_r: 0
+Size of subsDetails_r: 0
+Action Definition Format: 4
+Event Trigger Definition Format: 1
+Granularity Period: 100
+Measurement Label: No Label
+Measurement Name: 
+RIC Style Type: 4
+Reporting Period: 100
+Test Condition Expression: 2
+Test Condition Type: 3
+Test Condition Value: 40
+Size of subsDetails_r: 10
+[INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** Total energy consumption for mmWave cell 2: 972.744J at time 0.8, diff from last measurement is: 145.222J
+Total energy consumption for mmWave cell 3: 1029.2J at time 0.8, diff from last measurement is: 183.99J
+Total energy consumption for mmWave cell 4: 1152.22J at time 0.8, diff from last measurement is: 164.019J
+Total energy consumption for mmWave cell 5: 854.684J at time 0.8, diff from last measurement is: 109.734J
+Position of UE with IMSI 1 is 2155.57:3082.36:1.5 at time 0.8, UE connected to Cell: 1
+Position of UE with IMSI 2 is 2178.71:1733.99:1.5 at time 0.8, UE connected to Cell: 3
+Position of UE with IMSI 3 is 2168.85:2537.14:1.5 at time 0.8, UE connected to Cell: 4
+Position of UE with IMSI 4 is 1849.44:1508.71:1.5 at time 0.8, UE connected to Cell: 5
+Position of UE with IMSI 5 is 1866.18:1713.66:1.5 at time 0.8, UE connected to Cell: 2
+Position of UE with IMSI 6 is 1865.13:2477.91:1.5 at time 0.8, UE connected to Cell: 4
+Position of UE with IMSI 7 is 2702.78:1900:1.5 at time 0.8, UE connected to Cell: 3
+Position of UE with IMSI 8 is 2187.01:1900:1.5 at time 0.8, UE connected to Cell: 2
+Position of UE with IMSI 9 is 1939.86:1400:1.5 at time 0.8, UE connected to Cell: 5
+Position of UE with IMSI 10 is 1971.05:2250:1.5 at time 0.8, UE connected to Cell: 4
+Total energy consumption for mmWave cell 2: 1074.05J at time 0.9, diff from last measurement is: 101.302J
+Total energy consumption for mmWave cell 3: 1175.71J at time 0.9, diff from last measurement is: 146.51J
+Total energy consumption for mmWave cell 4: 1298.44J at time 0.9, diff from last measurement is: 146.216J
+Total energy consumption for mmWave cell 5: 962.661J at time 0.9, diff from last measurement is: 107.977J
+Position of UE with IMSI 1 is 2137.52:3082.36:1.5 at time 0.9, UE connected to Cell: 1
+Position of UE with IMSI 2 is 2163.55:1733.99:1.5 at time 0.9, UE connected to Cell: 3
+Position of UE with IMSI 3 is 2152.45:2537.14:1.5 at time 0.9, UE connected to Cell: 4
+Position of UE with IMSI 4 is 1830.62:1508.71:1.5 at time 0.9, UE connected to Cell: 5
+Position of UE with IMSI 5 is 1849.45:1713.66:1.5 at time 0.9, UE connected to Cell: 2
+Position of UE with IMSI 6 is 1848.27:2477.91:1.5 at time 0.9, UE connected to Cell: 4
+Position of UE with IMSI 7 is 2728.13:1900:1.5 at time 0.9, UE connected to Cell: 3
+Position of UE with IMSI 8 is 2210.39:1900:1.5 at time 0.9, UE connected to Cell: 2
+Position of UE with IMSI 9 is 1963.59:1400:1.5 at time 0.9, UE connected to Cell: 5
+Position of UE with IMSI 10 is 1998.68:2250:1.5 at time 0.9, UE connected to Cell: 4
+Total energy consumption for mmWave cell 2: 1241.99J at time 1, diff from last measurement is: 167.944J
+Total energy consumption for mmWave cell 3: 1335.75J at time 1, diff from last measurement is: 160.039J
+Total energy consumption for mmWave cell 4: 1475.34J at time 1, diff from last measurement is: 176.902J
+Total energy consumption for mmWave cell 5: 1082.94J at time 1, diff from last measurement is: 120.276J
+Position of UE with IMSI 1 is 2119.46:3082.36:1.5 at time 1, UE connected to Cell: 1
+Position of UE with IMSI 2 is 2148.39:1733.99:1.5 at time 1, UE connected to Cell: 3
+Position of UE with IMSI 3 is 2136.06:2537.14:1.5 at time 1, UE connected to Cell: 4
+Position of UE with IMSI 4 is 1811.81:1508.71:1.5 at time 1, UE connected to Cell: 5
+Position of UE with IMSI 5 is 1832.73:1713.66:1.5 at time 1, UE connected to Cell: 2
+Position of UE with IMSI 6 is 1831.41:2477.91:1.5 at time 1, UE connected to Cell: 4
+Position of UE with IMSI 7 is 2753.47:1900:1.5 at time 1, UE connected to Cell: 3
+Position of UE with IMSI 8 is 2233.77:1900:1.5 at time 1, UE connected to Cell: 2
+Position of UE with IMSI 9 is 1987.32:1400:1.5 at time 1, UE connected to Cell: 5
+Position of UE with IMSI 10 is 2026.31:2250:1.5 at time 1, UE connected to Cell: 4
+Total energy consumption for mmWave cell 2: 1438.04J at time 1.1, diff from last measurement is: 196.053J
+Total energy consumption for mmWave cell 3: 1499.36J at time 1.1, diff from last measurement is: 163.611J
+Total energy consumption for mmWave cell 4: 1638.95J at time 1.1, diff from last measurement is: 163.609J
+Total energy consumption for mmWave cell 5: 1197.3J at time 1.1, diff from last measurement is: 114.361J
+Position of UE with IMSI 1 is 2101.41:3082.36:1.5 at time 1.1, UE connected to Cell: 1
+Position of UE with IMSI 2 is 2133.23:1733.99:1.5 at time 1.1, UE connected to Cell: 3
+Position of UE with IMSI 3 is 2119.67:2537.14:1.5 at time 1.1, UE connected to Cell: 4
+Position of UE with IMSI 4 is 1792.99:1508.71:1.5 at time 1.1, UE connected to Cell: 5
+Position of UE with IMSI 5 is 1816:1713.66:1.5 at time 1.1, UE connected to Cell: 2
+Position of UE with IMSI 6 is 1814.56:2477.91:1.5 at time 1.1, UE connected to Cell: 4
+Position of UE with IMSI 7 is 2778.82:1900:1.5 at time 1.1, UE connected to Cell: 3
+Position of UE with IMSI 8 is 2257.14:1900:1.5 at time 1.1, UE connected to Cell: 2
+Position of UE with IMSI 9 is 2011.06:1400:1.5 at time 1.1, UE connected to Cell: 5
+Position of UE with IMSI 10 is 2053.94:2250:1.5 at time 1.1, UE connected to Cell: 4
+Total energy consumption for mmWave cell 2: 1625.84J at time 1.2, diff from last measurement is: 187.796J
+Total energy consumption for mmWave cell 3: 1674.15J at time 1.2, diff from last measurement is: 174.796J
+Total energy consumption for mmWave cell 4: 1808.42J at time 1.2, diff from last measurement is: 169.466J
+Total energy consumption for mmWave cell 5: 1311.19J at time 1.2, diff from last measurement is: 113.893J
+Position of UE with IMSI 1 is 2083.36:3082.36:1.5 at time 1.2, UE connected to Cell: 1
+Position of UE with IMSI 2 is 2118.07:1733.99:1.5 at time 1.2, UE connected to Cell: 3
+Position of UE with IMSI 3 is 2103.27:2537.14:1.5 at time 1.2, UE connected to Cell: 4
+Position of UE with IMSI 4 is 1774.17:1508.71:1.5 at time 1.2, UE connected to Cell: 5
+Position of UE with IMSI 5 is 1799.27:1713.66:1.5 at time 1.2, UE connected to Cell: 2
+Position of UE with IMSI 6 is 1797.7:2477.91:1.5 at time 1.2, UE connected to Cell: 4
+Position of UE with IMSI 7 is 2804.17:1900:1.5 at time 1.2, UE connected to Cell: 3
+Position of UE with IMSI 8 is 2280.52:1900:1.5 at time 1.2, UE connected to Cell: 2
+Position of UE with IMSI 9 is 2034.79:1400:1.5 at time 1.2, UE connected to Cell: 5
+Position of UE with IMSI 10 is 2081.57:2250:1.5 at time 1.2, UE connected to Cell: 4
+
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 14
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 14
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 14
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 13
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 13
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 13
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 12
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 12
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 12
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 11
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 11
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 11
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 14
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 14
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 14
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 13
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 13
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 13
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 12
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 12
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 12
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 11
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 11
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 11
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done EncodinTotal energy consumption for mmWave cell 2: 1805.26J at time 1.3, diff from last measurement is: 179.422J
+Total energy consumption for mmWave cell 3: 1841.92J at time 1.3, diff from last measurement is: 167.77J
+Total energy consumption for mmWave cell 4: 2000.49J at time 1.3, diff from last measurement is: 192.07J
+Total energy consumption for mmWave cell 5: 1419.75J at time 1.3, diff from last measurement is: 108.564J
+Position of UE with IMSI 1 is 2065.3:3082.36:1.5 at time 1.3, UE connected to Cell: 1
+Position of UE with IMSI 2 is 2102.91:1733.99:1.5 at time 1.3, UE connected to Cell: 3
+Position of UE with IMSI 3 is 2086.88:2537.14:1.5 at time 1.3, UE connected to Cell: 4
+Position of UE with IMSI 4 is 1755.35:1508.71:1.5 at time 1.3, UE connected to Cell: 5
+Position of UE with IMSI 5 is 1782.54:1713.66:1.5 at time 1.3, UE connected to Cell: 2
+Position of UE with IMSI 6 is 1780.84:2477.91:1.5 at time 1.3, UE connected to Cell: 4
+Position of UE with IMSI 7 is 2829.51:1900:1.5 at time 1.3, UE connected to Cell: 3
+Position of UE with IMSI 8 is 2303.9:1900:1.5 at time 1.3, UE connected to Cell: 2
+Position of UE with IMSI 9 is 2058.52:1400:1.5 at time 1.3, UE connected to Cell: 5
+Position of UE with IMSI 10 is 2109.2:2250:1.5 at time 1.3, UE connected to Cell: 4
+g INDICATION Message ****** 
+ [INFO ] Send data to client_fd 14
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 14
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 14
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 13
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 13
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 13
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 12
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 12
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 12
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 11
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 11
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 11
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 14
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 14
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 14
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 13
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 13
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 13
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 12
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 12
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 12
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 11
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 11
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 11
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 14
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 14
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 14
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 13
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 13
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 13
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 12
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 12
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 12
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 11
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 11
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 11
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 14
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 14
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 14
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 13
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 13
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 13
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 12
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFOTotal energy consumption for mmWave cell 2: 2004.42J at time 1.4, diff from last measurement is: 199.157J
+Total energy consumption for mmWave cell 3: 2068.25J at time 1.4, diff from last measurement is: 226.33J
+Total energy consumption for mmWave cell 4: 2164.27J at time 1.4, diff from last measurement is: 163.785J
+Total energy consumption for mmWave cell 5: 1530.84J at time 1.4, diff from last measurement is: 111.082J
+Position of UE with IMSI 1 is 2047.25:3082.36:1.5 at time 1.4, UE connected to Cell: 1
+Position of UE with IMSI 2 is 2087.75:1733.99:1.5 at time 1.4, UE connected to Cell: 3
+Position of UE with IMSI 3 is 2070.48:2537.14:1.5 at time 1.4, UE connected to Cell: 4
+Position of UE with IMSI 4 is 1736.53:1508.71:1.5 at time 1.4, UE connected to Cell: 5
+Position of UE with IMSI 5 is 1765.82:1713.66:1.5 at time 1.4, UE connected to Cell: 2
+Position of UE with IMSI 6 is 1763.98:2477.91:1.5 at time 1.4, UE connected to Cell: 4
+Position of UE with IMSI 7 is 2854.86:1900:1.5 at time 1.4, UE connected to Cell: 3
+Position of UE with IMSI 8 is 2327.27:1900:1.5 at time 1.4, UE connected to Cell: 2
+Position of UE with IMSI 9 is 2082.25:1400:1.5 at time 1.4, UE connected to Cell: 5
+Position of UE with IMSI 10 is 2136.83:2250:1.5 at time 1.4, UE connected to Cell: 4
+Total energy consumption for mmWave cell 2: 2195.38J at time 1.5, diff from last measurement is: 190.959J
+Total energy consumption for mmWave cell 3: 2209.44J at time 1.5, diff from last measurement is: 141.183J
+Total energy consumption for mmWave cell 4: 2358.1J at time 1.5, diff from last measurement is: 193.827J
+Total energy consumption for mmWave cell 5: 1622.83J at time 1.5, diff from last measurement is: 91.9913J
+Position of UE with IMSI 1 is 2029.2:3082.36:1.5 at time 1.5, UE connected to Cell: 1
+Position of UE with IMSI 2 is 2072.59:1733.99:1.5 at time 1.5, UE connected to Cell: 3
+Position of UE with IMSI 3 is 2054.09:2537.14:1.5 at time 1.5, UE connected to Cell: 4
+Position of UE with IMSI 4 is 1717.71:1508.71:1.5 at time 1.5, UE connected to Cell: 5
+Position of UE with IMSI 5 is 1749.09:1713.66:1.5 at time 1.5, UE connected to Cell: 2
+Position of UE with IMSI 6 is 1747.12:2477.91:1.5 at time 1.5, UE connected to Cell: 4
+Position of UE with IMSI 7 is 2880.21:1900:1.5 at time 1.5, UE connected to Cell: 3
+Position of UE with IMSI 8 is 2350.65:1900:1.5 at time 1.5, UE connected to Cell: 2
+Position of UE with IMSI 9 is 2105.98:1400:1.5 at time 1.5, UE connected to Cell: 5
+Position of UE with IMSI 10 is 2164.46:2250:1.5 at time 1.5, UE connected to Cell: 4
+ ] Send data to client_fd 12
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 12
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 11
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 11
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 11
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 14
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 14
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 14
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 13
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 13
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 13
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 12
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 12
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 12
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 11
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 11
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 11
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 14
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 14
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 14
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 13
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 13
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 13
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 12
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 12
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 12
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 11
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 11
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 11
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 14
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 14
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 14
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 13
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 13
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 13
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 12
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 12
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 12
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 11
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 11
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 11
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 14
+ 
+ *** DTotal energy consumption for mmWave cell 2: 2382.94J at time 1.6, diff from last measurement is: 187.562J
+Total energy consumption for mmWave cell 3: 2426.75J at time 1.6, diff from last measurement is: 217.312J
+Total energy consumption for mmWave cell 4: 2567.56J at time 1.6, diff from last measurement is: 209.464J
+Total energy consumption for mmWave cell 5: 1741.7J at time 1.6, diff from last measurement is: 118.87J
+Position of UE with IMSI 1 is 2011.14:3082.36:1.5 at time 1.6, UE connected to Cell: 1
+Position of UE with IMSI 2 is 2057.43:1733.99:1.5 at time 1.6, UE connected to Cell: 3
+Position of UE with IMSI 3 is 2037.7:2537.14:1.5 at time 1.6, UE connected to Cell: 4
+Position of UE with IMSI 4 is 1698.89:1508.71:1.5 at time 1.6, UE connected to Cell: 5
+Position of UE with IMSI 5 is 1732.36:1713.66:1.5 at time 1.6, UE connected to Cell: 2
+Position of UE with IMSI 6 is 1730.26:2477.91:1.5 at time 1.6, UE connected to Cell: 4
+Position of UE with IMSI 7 is 2905.56:1900:1.5 at time 1.6, UE connected to Cell: 3
+Position of UE with IMSI 8 is 2374.03:1900:1.5 at time 1.6, UE connected to Cell: 2
+Position of UE with IMSI 9 is 2129.72:1400:1.5 at time 1.6, UE connected to Cell: 5
+Position of UE with IMSI 10 is 2192.09:2250:1.5 at time 1.6, UE connected to Cell: 4
+one Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 14
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 14
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 13
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 13
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 13
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 12
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 12
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 12
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 11
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 11
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 11
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 14
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 14
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 14
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 13
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 13
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 13
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 12
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 12
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 12
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 11
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 11
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 11
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 14
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 14
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 14
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 13
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 13
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 13
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 12
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 12
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 12
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 11
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 11
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 11
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 8
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 14
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 14
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 14
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 13
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 13
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 13
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 12
+ 
+ *** Done Encoding INDICATION Message ****** 
+ [INFO ] Send data to client_fd 12
+ 
+ *** Done Encoding INDICATION Message ***

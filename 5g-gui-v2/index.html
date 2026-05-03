@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+  <title>5G O-RAN Command Center</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap">
+</head>
+<body>
+  <canvas id="cv"></canvas>
+
+  <div id="hud">
+
+    <!-- ── Top bar ── -->
+    <div id="topbar">
+      <div id="brand">
+        <div id="brand-name">5G-NR · O-RAN</div>
+        <div id="brand-sub">COMMAND CENTER</div>
+      </div>
+      <div id="kpis">
+        <div class="kp"><span class="kv c-cyan"   id="k-cells">—</span><span class="kl">CELLS</span></div>
+        <div class="ks"></div>
+        <div class="kp"><span class="kv c-green"  id="k-ues">—</span><span class="kl">UEs</span></div>
+        <div class="ks"></div>
+        <div class="kp"><span class="kv c-purple" id="k-thr">—</span><span class="kl">THROUGHPUT</span></div>
+        <div class="ks"></div>
+        <div class="kp"><span class="kv c-yellow" id="k-lat">—</span><span class="kl">LATENCY</span></div>
+        <div class="ks"></div>
+        <div class="kp"><span class="kv c-orange" id="k-load">—</span><span class="kl">LOAD</span></div>
+      </div>
+      <div id="topbar-r">
+        <span class="ric-dot offline" id="sim-dot"></span>
+        <span id="sim-status-txt" class="ric-val offline">STOPPED</span>
+        <div id="clock">--:--:--</div>
+      </div>
+    </div>
+
+    <!-- ── Right panel ── -->
+    <div id="ctrl-panel-w">
+      <div id="ctrl-panel">
+
+        <!-- Panel brand header -->
+        <div id="panel-header">
+          <div id="panel-title">SYSTEM CONTROL</div>
+          <div id="panel-subtitle">O-RAN ORCHESTRATOR v2</div>
+          <div id="panel-header-line"></div>
+        </div>
+
+        <!-- Scrollable content -->
+        <div id="ctrl-scroll">
+
+          <!-- Master buttons -->
+          <div id="ctrl-master">
+            <button class="mbtn mbtn-launch" id="btn-launch-all">&#9889;&nbsp;LAUNCH ALL</button>
+            <button class="mbtn mbtn-halt"   id="btn-stop-all">&#9632;&nbsp;STOP ALL</button>
+          </div>
+
+          <div class="seq-label">STARTUP SEQUENCE</div>
+
+          <!-- 01 Docker Backend -->
+          <div class="sys-card card-docker" id="sys-docker">
+            <div class="card-num">01</div>
+            <div class="sys-head">
+              <div class="sys-indicator">
+                <span class="sys-dot stopped" id="dot-docker"></span>
+              </div>
+              <div class="sys-info">
+                <div class="sys-name">BACKEND</div>
+                <div class="sys-sub">InfluxDB &nbsp;·&nbsp; FastAPI &nbsp;·&nbsp; :8000</div>
+              </div>
+              <span class="sys-state offline" id="state-docker">OFFLINE</span>
+            </div>
+            <div class="sys-btns">
+              <button class="sbtn sbtn-start" onclick="ctrlStart('docker')">&#9654;&nbsp;START</button>
+              <button class="sbtn sbtn-stop"  onclick="ctrlStop('docker')">&#9632;&nbsp;STOP</button>
+            </div>
+          </div>
+
+          <!-- 02 FlexRIC -->
+          <div class="sys-card card-flexric" id="sys-flexric">
+            <div class="card-num">02</div>
+            <div class="sys-head">
+              <div class="sys-indicator">
+                <span class="sys-dot stopped" id="dot-flexric"></span>
+              </div>
+              <div class="sys-info">
+                <div class="sys-name">FLEXRIC</div>
+                <div class="sys-sub">nearRT-RIC &nbsp;·&nbsp; E2 Interface</div>
+              </div>
+              <span class="sys-state offline" id="state-flexric">OFFLINE</span>
+            </div>
+            <div class="sys-btns">
+              <button class="sbtn sbtn-start" onclick="ctrlStart('flexric')">&#9654;&nbsp;START</button>
+              <button class="sbtn sbtn-stop"  onclick="ctrlStop('flexric')">&#9632;&nbsp;STOP</button>
+            </div>
+          </div>
+
+          <!-- 03 NS-3 Simulation -->
+          <div class="sys-card card-sim" id="sys-simulation">
+            <div class="card-num">03</div>
+            <div class="sys-head">
+              <div class="sys-indicator">
+                <span class="sys-dot stopped" id="dot-simulation"></span>
+              </div>
+              <div class="sys-info">
+                <div class="sys-name">NS-3 SIMULATION</div>
+                <div class="sys-sub">mmWave O-RAN Network</div>
+              </div>
+              <span class="sys-state offline" id="state-simulation">OFFLINE</span>
+            </div>
+            <div class="sys-params">
+              <div class="sp-row">
+                <label class="sp-lbl">SCENARIO</label>
+                <select id="scenario-sel" class="sp-sel"></select>
+              </div>
+              <div class="sp-row sp-row-nums">
+                <div class="sp-field">
+                  <label class="sp-lbl">UEs</label>
+                  <input id="param-ues"   type="number" class="sp-inp" value="20" min="1" max="100">
+                </div>
+                <div class="sp-sep"></div>
+                <div class="sp-field">
+                  <label class="sp-lbl">CELLS</label>
+                  <input id="param-cells" type="number" class="sp-inp" value="7"  min="1" max="20">
+                </div>
+                <div class="sp-sep"></div>
+                <div class="sp-field">
+                  <label class="sp-lbl">TIME&nbsp;s</label>
+                  <input id="param-time"  type="number" class="sp-inp" value="60" min="10">
+                </div>
+              </div>
+            </div>
+            <div class="sys-btns">
+              <button class="sbtn sbtn-start" onclick="ctrlStart('simulation')">&#9654;&nbsp;START</button>
+              <button class="sbtn sbtn-stop"  onclick="ctrlStop('simulation')">&#9632;&nbsp;STOP</button>
+            </div>
+          </div>
+
+          <!-- 04 Data Pusher -->
+          <div class="sys-card card-pusher" id="sys-pusher">
+            <div class="card-num">04</div>
+            <div class="sys-head">
+              <div class="sys-indicator">
+                <span class="sys-dot stopped" id="dot-pusher"></span>
+              </div>
+              <div class="sys-info">
+                <div class="sys-name">DATA PUSHER</div>
+                <div class="sys-sub">CSV → InfluxDB pipeline</div>
+              </div>
+              <span class="sys-state offline" id="state-pusher">OFFLINE</span>
+            </div>
+            <div class="sys-btns">
+              <button class="sbtn sbtn-start" onclick="ctrlStart('pusher')">&#9654;&nbsp;START</button>
+              <button class="sbtn sbtn-stop"  onclick="ctrlStop('pusher')">&#9632;&nbsp;STOP</button>
+            </div>
+          </div>
+
+          <!-- 05 GRU xApp -->
+          <div class="sys-card card-xapp" id="sys-xapp">
+            <div class="card-num">05</div>
+            <div class="sys-head">
+              <div class="sys-indicator">
+                <span class="sys-dot stopped" id="dot-xapp"></span>
+              </div>
+              <div class="sys-info">
+                <div class="sys-name">GRU xAPP</div>
+                <div class="sys-sub">RC Handover Controller</div>
+              </div>
+              <span class="sys-state offline" id="state-xapp">OFFLINE</span>
+            </div>
+            <div class="sys-btns">
+              <button class="sbtn sbtn-start" onclick="ctrlStart('xapp')">&#9654;&nbsp;START</button>
+              <button class="sbtn sbtn-stop"  onclick="ctrlStop('xapp')">&#9632;&nbsp;STOP</button>
+            </div>
+          </div>
+
+          <!-- Handover log -->
+          <div class="seq-label" style="margin-top:6px">HANDOVER LOG</div>
+          <div id="ho-log"></div>
+
+        </div><!-- /ctrl-scroll -->
+
+      </div>
+    </div>
+
+    <!-- ── Bottom: live data twin strip ── -->
+    <div id="bottom-bar">
+      <div class="bb-sec bb-sinr">
+        <span class="bb-lbl">UE · SINR · dB</span>
+        <div id="sinr-strip"></div>
+      </div>
+      <div class="bb-div"></div>
+      <div class="bb-sec bb-energy">
+        <span class="bb-lbl">ENERGY</span>
+        <div id="energy-track"><div id="energy-fill"></div></div>
+        <span id="energy-val">— kJ</span>
+      </div>
+      <div class="bb-div"></div>
+      <div class="bb-sec bb-scen">
+        <span class="bb-lbl">SCENARIO</span>
+        <span id="scenario-lbl" class="bb-scenval">gru_scenario · 8C · 20UE</span>
+      </div>
+    </div>
+
+    <!-- ── Cell inspect tooltip ── -->
+    <div id="cell-tooltip" class="hidden">
+      <div class="ctt-head">
+        <div class="ctt-id-row">
+          <span id="ctt-id" class="ctt-id">CELL</span>
+          <span id="ctt-type" class="ctt-type">—</span>
+        </div>
+        <button class="ctt-close" id="ctt-close">&#215;</button>
+      </div>
+      <div class="ctt-body">
+        <div class="ctt-row">
+          <span class="ctt-lbl">STATUS</span>
+          <span id="ctt-status" class="ctt-val">—</span>
+        </div>
+        <div class="ctt-row">
+          <span class="ctt-lbl">LOAD</span>
+          <div class="ctt-bar-track"><div id="ctt-bar" class="ctt-bar-fill"></div></div>
+          <span id="ctt-load" class="ctt-val">—</span>
+        </div>
+        <div class="ctt-row">
+          <span class="ctt-lbl">CONNECTED UEs</span>
+          <span id="ctt-ues" class="ctt-val">—</span>
+        </div>
+        <div class="ctt-row">
+          <span class="ctt-lbl">THROUGHPUT</span>
+          <span id="ctt-thr" class="ctt-val">—</span>
+        </div>
+        <div class="ctt-row">
+          <span class="ctt-lbl">LATENCY</span>
+          <span id="ctt-lat" class="ctt-val">—</span>
+        </div>
+      </div>
+      <div class="ctt-footer">CLICK ELSEWHERE TO CLOSE</div>
+    </div>
+
+    <div id="scanline"></div>
+    <div id="hint">DRAG TO ROTATE &nbsp;·&nbsp; SCROLL TO ZOOM &nbsp;·&nbsp; CLICK TOWER TO INSPECT</div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
