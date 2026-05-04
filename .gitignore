@@ -25,6 +25,12 @@ __pycache__/
 # ── Zip backups ──
 *.zip
 
+# ── Private Claude memory/config ──
+.claude/
+
+# ── Lock files ──
+*.lock
+
 # ── OS files ──
 .DS_Store
 Thumbs.db

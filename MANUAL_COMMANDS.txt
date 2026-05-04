@@ -412,6 +412,34 @@ EOF
 
 
 ================================================================================
+  CODE FIXES & ACCURACY NOTES
+================================================================================
+
+  FIX 1 — REAL RSRP IN GRU LSTM CSV (applied 2026-05-03)
+  -------------------------------------------------------
+  FILE:    scratch/gru_scenario.cc  →  LstmCsvTraceCb function
+  PROBLEM: Level and SecondCell_RSRP were approximated as:
+             Level           = -100.0 + servingSinrDb
+             SecondCell_RSRP = -100.0 + bestNeighSinrDb
+           This fake formula does not match the training data RSRP range.
+  FIX:     Now uses real RSRP computed from TxPower - PathLoss (3GPP UMi model):
+             Level           = g_real_rsrp_serving[imsi]
+             SecondCell_RSRP = g_real_rsrp_neighbor[imsi]
+           Falls back to SINR-based value only during the very first tick before
+           UpdateRealRsrpPrb() has populated the maps.
+  IMPACT:  lstm_features.csv (the file gru_xapp.py reads for GRU predictions)
+           now contains scientifically correct RSRP values. All future simulations
+           use the correct values automatically.
+
+  FIX 2 — PING-PONG DETECTION PER UE (applied 2026-05-03)
+  ---------------------------------------------------------
+  FILE:    5g-gui-v2/controller.py  →  _calc_pingpong function
+  PROBLEM: Sequential global scan missed ping-pongs when other UEs' handovers
+           interleaved between a UE's A→B and B→A events (showed 0.0% falsely).
+  FIX:     Groups handover history per UE before checking A→B→A reversals.
+  IMPACT:  sim006 correct result: 3 ping-pongs, 1.72% rate (was wrongly 0%).
+
+================================================================================
   TROUBLESHOOTING
 ================================================================================
 

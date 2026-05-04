@@ -284,6 +284,12 @@ static double GetUlBitrate (uint64_t imsi)
   return (sum * 8.0) / LSTM_BITRATE_WINDOW_S;
 }
 
+// Real RSRP maps — populated by UpdateRealRsrpPrb every indicationPeriodicity
+// RSRP[imsi] = TxPower_dBm - PathLoss_dB  (3GPP TS 36.214, UMi LoS model)
+static std::map<uint64_t, double> g_real_rsrp_serving;   // dBm per UE (serving cell)
+static std::map<uint64_t, double> g_real_rsrp_neighbor;  // dBm best neighbor cell
+static std::map<uint64_t, uint16_t> g_real_neigh_cellid; // best neighbor cell ID
+
 // LSTM 12-feature CSV: real SINR from eNB L3 report; RSRP/CQI derived; speed from mobility; DL/UL from app traces
 static std::ofstream g_lstmCsv;
 static void LstmCsvTraceCb (NodeContainer* ueNodes, double bandwidthHz, uint64_t imsi,
@@ -299,11 +305,16 @@ static void LstmCsvTraceCb (NodeContainer* ueNodes, double bandwidthHz, uint64_t
         NS_LOG_UNCOND ("LSTM CSV appending: " << path);
     }
   double t = Simulator::Now ().GetSeconds ();
-  double Level = -100.0 + servingSinrDb;
+  // Use real RSRP (TxPower - PathLoss) from global maps; fall back to SINR-based approximation
+  // only during the first tick before UpdateRealRsrpPrb has run.
+  double Level = (g_real_rsrp_serving.count (imsi) && g_real_rsrp_serving[imsi] > -199.0)
+                 ? g_real_rsrp_serving[imsi] : (-100.0 + servingSinrDb);
   double Qual = 0.0;
   double SNR = servingSinrDb;
   double CQI = (servingSinrDb < -6.0) ? 0.0 : ((servingSinrDb > 26.0) ? 15.0 : (servingSinrDb + 6.0) / 2.2);
-  double SecondCell_RSRP = (bestNeighCellId == 0) ? 0.0 : (-100.0 + bestNeighSinrDb);
+  double real_neigh_rsrp = (g_real_rsrp_neighbor.count (imsi) && g_real_rsrp_neighbor[imsi] > -199.0)
+                           ? g_real_rsrp_neighbor[imsi] : (-100.0 + bestNeighSinrDb);
+  double SecondCell_RSRP = (bestNeighCellId == 0) ? 0.0 : real_neigh_rsrp;
   double SecondCell_SNR = (bestNeighCellId == 0) ? -999.0 : bestNeighSinrDb;
   double NRxLev1 = SecondCell_RSRP;
   double NQual1 = 0.0;
@@ -383,15 +394,8 @@ static const double RSRQ_MIN_DB = -19.5;
 static const double RSRQ_MAX_DB = -3.0;
 
 // ============================================================
-// Real RSRP and PRB maps — updated every indicationPeriodicity
-// Key = IMSI (1-based), Value = real measured value
+// PRB maps — updated every indicationPeriodicity
 // ============================================================
-// RSRP[imsi] = TxPower_dBm - PathLoss_dB  (3GPP TS 36.214)
-// Computed from UE-gNB distance using ThreeGpp UMi path loss model
-static std::map<uint64_t, double> g_real_rsrp_serving;   // dBm per UE
-static std::map<uint64_t, double> g_real_rsrp_neighbor;  // dBm best neighbor
-static std::map<uint64_t, uint16_t> g_real_neigh_cellid; // best neighbor cell
-
 // PRB[cellId] = numConnectedUEs * PRBs_per_UE
 // Real PRB usage: total = sum of allocated PRBs across all UEs in cell
 // In ns3 mmWave: each UE gets equal share → PRBused = (NUE/TOTAL)*TOTAL_PRB
