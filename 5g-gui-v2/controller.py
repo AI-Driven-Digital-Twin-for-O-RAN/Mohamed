@@ -495,7 +495,20 @@ async def _launch_all_task(params: SimParams):
     # 1 — Docker (InfluxDB + 2D GUI backend — shared by both GUIs)
     subprocess.run(["docker", "compose", "up", "-d", "influxdb", "gui"],
                    capture_output=True, cwd=GUI_DIR)
-    await asyncio.sleep(3)
+    # Wait for InfluxDB to accept connections, then reset DB to clear stale field schemas
+    for _ in range(30):
+        await asyncio.sleep(1)
+        r = subprocess.run("curl -sf http://localhost:8086/ping",
+                           shell=True, capture_output=True)
+        if r.returncode == 0:
+            break
+    subprocess.run('curl -s -X POST "http://localhost:8086/query" '
+                   '--data-urlencode "q=DROP DATABASE influx"',
+                   shell=True, capture_output=True)
+    subprocess.run('curl -s -X POST "http://localhost:8086/query" '
+                   '--data-urlencode "q=CREATE DATABASE influx"',
+                   shell=True, capture_output=True)
+    await asyncio.sleep(1)
 
     # 2 — FlexRIC nearRT-RIC — wait until it is actually listening on its E2 port
     _popen("flexric", [FLEXRIC_BIN, "-c", FLEXRIC_CONF],
@@ -530,15 +543,17 @@ async def _launch_all_task(params: SimParams):
     cmd = f'./ns3 run "scratch/{params.scenario}.cc {flags}"'
     _popen("simulation", cmd, cwd=NS3_DIR, log_key="simulation", shell=True)
 
-    # Wait for E2 connections in FlexRIC log — abort if simulation dies
+    # Wait for E2 connections via SCTP — FlexRIC doesn't log to stdout
     for _ in range(60):
         await asyncio.sleep(3)
         if not _alive("simulation"):
             return   # ns-3 crashed — stop here, don't start xApp
+        r = subprocess.run(
+            "ss -Snp 2>/dev/null | grep ':36421' | grep -c ESTAB",
+            shell=True, capture_output=True, text=True
+        )
         try:
-            with open(LOG["flexric"]) as f:
-                content = f.read()
-            if content.count("E2 SETUP-REQUEST") >= int(params.n_mmwave):
+            if int(r.stdout.strip()) >= int(params.n_mmwave):
                 break
         except Exception:
             pass
