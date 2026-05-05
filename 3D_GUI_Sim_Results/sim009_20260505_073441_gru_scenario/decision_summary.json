@@ -5,7 +5,7 @@
   "total_handovers": 176,
   "pingpong_events": 8,
   "pingpong_rate_pct": 4.55,
-  "correct_decisions": 176,
+  "correct_decisions": 168,
   "total_decisions": 176,
-  "accuracy_pct": 100.0
+  "accuracy_pct": 95.5
 }

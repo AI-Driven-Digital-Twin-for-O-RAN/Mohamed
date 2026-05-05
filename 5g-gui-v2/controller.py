@@ -107,14 +107,19 @@ def _build_decision_log(csv_path: str, sim_label: str) -> list:
     except Exception:
         return []
 
-    # Mark ping-pong: UE did A→B then B→A within 5 seconds
+    # Mark ping-pong: UE did A→B then B→A within 5 seconds (grouped per UE)
+    ue_rows: dict = defaultdict(list)
+    for idx, r in enumerate(rows):
+        ue_rows[r["ue_id"]].append((idx, r))
+
     pp_indices = set()
-    for i in range(1, len(rows)):
-        a, b = rows[i-1], rows[i]
-        if (a["ue_id"] == b["ue_id"] and
-                a["to_cell"] == b["from_cell"] and a["from_cell"] == b["to_cell"] and
-                float(b["time_sec"]) - float(a["time_sec"]) <= 5.0):
-            pp_indices.add(i - 1)
+    for ue_list in ue_rows.values():
+        for i in range(1, len(ue_list)):
+            prev_idx, a = ue_list[i - 1]
+            curr_idx, b = ue_list[i]
+            if (a["to_cell"] == b["from_cell"] and a["from_cell"] == b["to_cell"] and
+                    float(b["time_sec"]) - float(a["time_sec"]) <= 5.0):
+                pp_indices.add(prev_idx)
 
     decisions = []
     for idx, r in enumerate(rows):
