@@ -1,0 +1,6 @@
+Simulation Results — sim008 — 20260505_042617
+============================================
+Total handovers   : 0
+Ping-pong events  : 0
+Ping-pong rate    : 0.0%
+GRU accuracy      : 0.0% (0/0 correct decisions)

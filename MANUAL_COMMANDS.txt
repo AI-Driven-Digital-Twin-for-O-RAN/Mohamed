@@ -23,22 +23,18 @@ PATHS REFERENCE
 
 
 ================================================================================
-  KILL ALL PROCESSES (RUN THIS BEFORE EVERY NEW SIMULATION)
+  KILL ALL PROCESSES (RUN THIS BEFORE/AFTER EVERY SIMULATION)
 ================================================================================
 
-  # Kills all simulation processes and clears FlexRIC log — safe to run anytime
-  pkill -9 -f 'nearRT-RIC'           # FlexRIC nearRT-RIC
-  pkill -9 -f 'ns3\.42'              # NS-3 simulation
-  pkill -9 -f 'xapp_handover_gru'    # GRU C xApp
-  pkill -9 -f 'xapp_lb_awf'          # LB C xApp
-  pkill -9 -f 'xapp_rc_handover'     # RC handover xApp
-  pkill -9 -f 'sim_data_pusher'      # Data pusher
-  pkill -9 -f 'gru_xapp\.py'         # GRU Python service
-  pkill -f   'uvicorn controller:app' # 3D GUI controller (port 8001)
-  > /tmp/flexric.log                  # Clear FlexRIC log so E2 count starts from 0
+  # ONE COMMAND — kills simulation + GUI + Grafana + 3D GUI + frees all ports:
+  bash /home/omar_farouk/open-ran-clean/kill_sim.sh
 
-  # One-liner version (same as above):
-  pkill -9 -f 'nearRT-RIC'; pkill -9 -f 'ns3\.42'; pkill -9 -f 'xapp_handover_gru'; pkill -9 -f 'xapp_lb_awf'; pkill -9 -f 'gru_xapp\.py'; pkill -9 -f 'sim_data_pusher'; pkill -f 'uvicorn controller:app'; > /tmp/flexric.log; echo "All clear."
+  # What it kills:
+  #   nearRT-RIC, ns3, xapp_handover_gru, gru_xapp.py, sim_data_pusher
+  #   uvicorn controller (port 8001), Vite 3D frontend (port 3001)
+  #   Docker: GUI backend (8000), InfluxDB (8086), Grafana (3000)
+  #   Port 5000 (gru_xapp Flask)
+  #   Clears /tmp/flexric.log so E2 count starts from 0
 
   # Verify nothing is left running:
   ps aux | grep -E "nearRT|ns3\.42|gru_xapp|sim_data_pusher|uvicorn controller" | grep -v grep
@@ -338,16 +334,7 @@ EOF
   STOP EVERYTHING
 ================================================================================
 
-    pkill -9 -f 'nearRT-RIC'
-    pkill -9 -f 'ns3.42'
-    pkill -9 -f 'xapp_handover_gru'
-    pkill -9 -f 'xapp_lb_awf'
-    pkill -9 -f 'xapp_rc_handover_ctrl'
-    pkill -9 -f 'xApp_trigger.py'
-    pkill -9 -f 'sim_data_pusher'
-    pkill -9 -f 'gru_xapp.py'
-    cd /home/omar_farouk/open-ran-clean/yousef_fathy/ns-O-RAN-flexric/mmwave-LENA-oran/GUI
-    docker compose down
+    bash /home/omar_farouk/open-ran-clean/kill_sim.sh
 
 
 ================================================================================
@@ -412,8 +399,36 @@ EOF
 
 
 ================================================================================
+  REBUILD NS-3 (run after any C++ file change in scratch/ or src/)
+================================================================================
+
+    cd /home/omar_farouk/open-ran-clean/yousef_fathy/ns-O-RAN-flexric/mmwave-LENA-oran
+    ./ns3 build
+
+  Takes ~5-10 minutes. Required after changes to:
+    scratch/gru_scenario.cc
+    src/mmwave/model/mmwave-enb-net-device.cc
+    or any other .cc/.h file
+
+
+================================================================================
   CODE FIXES & ACCURACY NOTES
 ================================================================================
+
+  FIX 3 — PP REGRESSION AFTER sim006 (fixed 2026-05-05)
+  -------------------------------------------------------
+  PROBLEM: sim007/sim009 had 9.76% / 4.55% PP rate — worse than sim006 (1.72%).
+  CAUSES:
+    1. gru_scenario.cc: RSRP fix commit (2026-05-04) changed Level/SecondCell_RSRP
+       to real path-loss values. GRU model was trained on -100+SINR formula →
+       distribution shift → bad predictions.
+    2. mmwave-enb-net-device.cc: unbounded memcpy of IMSI (no size check) →
+       could corrupt UE identity reads.
+  FIX:
+    1. Reverted gru_scenario.cc to 588e1c8 (initial commit) — back to -100+SINR formula.
+    2. Restored bounds check in mmwave-enb-net-device.cc.
+    3. Rebuilt ns-3.
+  RULE: Do NOT apply real-RSRP fix unless GRU model is retrained on real-RSRP data.
 
   FIX 1 — REAL RSRP IN GRU LSTM CSV (applied 2026-05-03)
   -------------------------------------------------------
