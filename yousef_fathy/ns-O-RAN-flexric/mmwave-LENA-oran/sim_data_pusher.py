@@ -1,6 +1,16 @@
+import math
 import os
 import time
 from influxdb import InfluxDBClient
+
+
+def _to_float(field: str, fallback=-999.0):
+    """Convert a CSV field to float. Returns fallback for inf/nan/empty/non-numeric."""
+    try:
+        v = float(field)
+        return fallback if not math.isfinite(v) else v
+    except (ValueError, TypeError):
+        return None  # caller decides: keep as string or skip
 
 
 def read_and_clear_csv(file_path):
@@ -205,11 +215,8 @@ def push_data_to_influx(
                 if i == id_index or headers[i] == "timestamp":
                     continue
 
-                try:
-                    value = float(field) if field.replace('.', '', 1).isdigit() else field
-                except ValueError:
-                    print(f"Skipping invalid value in file '{file_path}' for field '{headers[i]}': {field}")
-                    continue
+                fv = _to_float(field)
+                value = fv if fv is not None else field
 
                 measurement = f"{filename}_{headers[i]}_{record_id}"
 
@@ -228,26 +235,18 @@ def push_data_to_influx(
             for i, field in enumerate(fields):
                 if headers[i] == "timestamp":
                     continue
-                try:
-                    if headers[i] == 'l3 serving sinr':
-                        value = str(field)
-                    else:
-                        value = float(field) if field.replace('.', '', 1).isdigit() else field
-                except ValueError:
-                    print(f"Skipping invalid value in file '{file_path}' for field '{headers[i]}': {field}")
-                    continue
+                fv = _to_float(field)
+                value = fv if fv is not None else field
                 if headers[i] in ue_fields and headers[i] not in cell_fields:
                     if headers[i] in ('l3 neigh id 1 (cellid)', 'l3 neigh id 2 (cellid)', 'l3 neigh id 3 (cellid)',
                                       'l3 neigh id 4 (cellid)', 'l3 neigh id 5 (cellid)', 'l3 neigh id 6 (cellid)',
                                       'l3 neigh id 7 (cellid)', 'l3 neigh id 8 (cellid)'):
-                        if value != '':
-                            value = int(value)
-                        else:
-                            value = 0
-                    if headers[i] in ('l3 neigh sinr 1', 'l3 neigh sinr 2', 'l3 neigh sinr 3', 'l3 neigh sinr 4'
-                                                                                               'l3 neigh sinr 5', 'l3 neigh sinr 6', 'l3 neigh sinr 7', 'l3 neigh sinr 8'):
-                        if value == '':
-                            value = -999
+                        fv2 = _to_float(field)
+                        value = int(fv2) if fv2 is not None else 0
+                    if headers[i] in ('l3 neigh sinr 1', 'l3 neigh sinr 2', 'l3 neigh sinr 3', 'l3 neigh sinr 4',
+                                      'l3 neigh sinr 5', 'l3 neigh sinr 6', 'l3 neigh sinr 7', 'l3 neigh sinr 8'):
+                        if fv is None:
+                            value = -999.0
                     measurement = f"ue_{int(fields[1])}_{headers[i]}"
                     influx_point = {
                         "measurement": measurement,
