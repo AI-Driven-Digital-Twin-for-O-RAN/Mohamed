@@ -19,6 +19,7 @@ yousef_fathy/swig/
 # ── Simulation output files (written fresh every run, not source) ──
 yousef_fathy/ns-O-RAN-flexric/mmwave-LENA-oran/energyfilecell*.csv
 yousef_fathy/ns-O-RAN-flexric/mmwave-LENA-oran/ue_position.txt
+yousef_fathy/ns-O-RAN-flexric/mmwave-LENA-oran/gnbs.txt
 
 # ── SQLite simulation database (runtime output) ──
 sim_decisions.db

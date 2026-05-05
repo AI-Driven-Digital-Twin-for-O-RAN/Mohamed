@@ -14,7 +14,7 @@
 #  The controller handles ALL timing internally:
 #    - Detects FlexRIC SCTP port 36421 (not TCP)
 #    - Waits up to 60s for FlexRIC to be ready
-#    - Waits for 7 E2 SETUP-REQUESTs before starting xApp
+#    - Waits for 7 SCTP E2 connections (ESTAB on port 36421)
 #    - Sets GRU_PORT=5000 env var for gru_xapp.py
 #    - Auto-saves results when simulation finishes
 #
@@ -69,6 +69,14 @@ pkill -9 -f 'sim_data_pusher'     2>/dev/null || true
 pkill -9 -f 'gru_xapp\.py'        2>/dev/null || true
 pkill -f   'uvicorn controller:app' 2>/dev/null || true
 > /tmp/flexric.log
+# Clear stale component logs
+for log in /tmp/farouk_ns3.log /tmp/farouk_xapp.log /tmp/farouk_gru.log /tmp/farouk_pusher.log /tmp/controller.log; do
+    > "$log" 2>/dev/null || true
+done
+# Clear runtime CSVs — ns-3 APPENDS, stale data from previous run must be wiped
+echo "time_sec,ue_id,from_cell,to_cell,event,executed_ok" > ~/handover.csv
+> ~/lstm_features.csv
+> ~/kpm_handover_features.csv 2>/dev/null || true
 sleep 2
 echo "    Done — all clear."
 
@@ -130,7 +138,7 @@ echo "║                                                              ║"
 echo "║  Expected duration: ~3 hours (simTime=60 sim-seconds)        ║"
 echo "║                                                              ║"
 echo "║  Check E2 connections (target = ${N_CELLS}):                        ║"
-echo "║    grep -c 'E2 SETUP-REQUEST' /tmp/flexric.log               ║"
+echo "║    ss -Snp | grep ':36421' | grep -c ESTAB                   ║"
 echo "║                                                              ║"
 echo "║  Monitor logs:                                               ║"
 echo "║    tail -f /tmp/farouk_ns3.log    (NS-3 simulation)          ║"

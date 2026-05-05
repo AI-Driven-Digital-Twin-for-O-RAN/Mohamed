@@ -49,6 +49,7 @@ RESULTS_DIR   = "/home/omar_farouk/open-ran-clean/3D_GUI_Sim_Results"
 DECISIONS_DB  = "/home/omar_farouk/open-ran-clean/sim_decisions.db"
 HANDOVER_CSV  = "/home/omar_farouk/handover.csv"
 LSTM_CSV      = "/home/omar_farouk/lstm_features.csv"
+KPM_CSV       = "/home/omar_farouk/kpm_handover_features.csv"
 
 def _calc_pingpong(csv_path: str, window_sec: float = 5.0) -> dict:
     """Count ping-pong handovers: UE handed A→B then B→A within window_sec."""
@@ -530,6 +531,12 @@ async def _launch_all_task(params: SimParams):
                cwd=os.path.dirname(GRU_SERVICE), log_key="gru",
                env={**os.environ, "GRU_PORT": str(GRU_PORT)})
         await asyncio.sleep(3)
+
+    # Clear runtime CSVs — ns-3 APPENDS, so stale data from previous run must be wiped
+    with open(HANDOVER_CSV, "w") as f:
+        f.write("time_sec,ue_id,from_cell,to_cell,event,executed_ok\n")
+    open(LSTM_CSV, "w").close()
+    open(KPM_CSV, "w").close()
 
     # 3b — ns-3 simulation
     flags = (

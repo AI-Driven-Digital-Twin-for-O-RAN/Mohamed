@@ -59,6 +59,19 @@ fuser -k 5000/tcp 2>/dev/null && echo "    ✓ freed port 5000 (gru_xapp)"    ||
 # Clear FlexRIC log so next run starts clean
 > /tmp/flexric.log 2>/dev/null && echo "    ✓ cleared /tmp/flexric.log" || true
 
+# Clear stale component logs so next run starts with empty logs
+for log in /tmp/farouk_ns3.log /tmp/farouk_xapp.log /tmp/farouk_gru.log /tmp/farouk_pusher.log /tmp/controller.log; do
+    > "$log" 2>/dev/null && echo "    ✓ cleared $(basename $log)" || true
+done
+
+# Clear runtime CSV files — ns-3 APPENDS, so stale data must be wiped before each run
+echo "time_sec,ue_id,from_cell,to_cell,event,executed_ok" > /home/omar_farouk/handover.csv \
+    && echo "    ✓ reset handover.csv" || true
+> /home/omar_farouk/lstm_features.csv \
+    && echo "    ✓ cleared lstm_features.csv" || true
+> /home/omar_farouk/kpm_handover_features.csv 2>/dev/null \
+    && echo "    ✓ cleared kpm_handover_features.csv" || true
+
 echo ""
 echo "╔══════════════════════════════════════════════════╗"
 echo "║  ALL CLEAR — Everything killed, ports freed.     ║"

@@ -29,12 +29,13 @@ PATHS REFERENCE
   # ONE COMMAND — kills simulation + GUI + Grafana + 3D GUI + frees all ports:
   bash /home/omar_farouk/open-ran-clean/kill_sim.sh
 
-  # What it kills:
+  # What it kills/clears:
   #   nearRT-RIC, ns3, xapp_handover_gru, gru_xapp.py, sim_data_pusher
   #   uvicorn controller (port 8001), Vite 3D frontend (port 3001)
   #   Docker: GUI backend (8000), InfluxDB (8086), Grafana (3000)
   #   Port 5000 (gru_xapp Flask)
-  #   Clears /tmp/flexric.log so E2 count starts from 0
+  #   Clears /tmp/flexric.log and all /tmp/farouk_*.log files
+  #   Resets ~/handover.csv (header only), ~/lstm_features.csv, ~/kpm_handover_features.csv
 
   # Verify nothing is left running:
   ps aux | grep -E "nearRT|ns3\.42|gru_xapp|sim_data_pusher|uvicorn controller" | grep -v grep
@@ -48,8 +49,8 @@ PATHS REFERENCE
 
   This single command does everything automatically:
     1. Kills all stale processes from any previous run
-    2. Clears /tmp/flexric.log
-    3. Starts Docker (InfluxDB + 2D backend on port 8000)
+    2. Clears /tmp/flexric.log, /tmp/farouk_*.log, ~/handover.csv, ~/lstm_features.csv
+    3. Starts Docker (InfluxDB + 2D backend on port 8000) — resets InfluxDB schema
     4. Starts 3D controller (port 8001)
     5. Starts 3D frontend (port 3001)
     6. Launches the simulation automatically — NO need to open browser or press anything
@@ -68,10 +69,8 @@ PATHS REFERENCE
     - Do NOT run gru.sh (it auto-launches and ignores the GUI input)
     - Run these commands manually in order:
 
-    Step 1 — Kill stale processes:
-      pkill -9 -f 'nearRT-RIC'; pkill -9 -f 'ns3\.42'; pkill -9 -f 'xapp_handover_gru'
-      pkill -9 -f 'sim_data_pusher'; pkill -9 -f 'gru_xapp\.py'
-      > /tmp/flexric.log
+    Step 1 — Kill stale processes and clear runtime files:
+      bash /home/omar_farouk/open-ran-clean/kill_sim.sh
 
     Step 2 — Start Docker:
       cd /home/omar_farouk/open-ran-clean/yousef_fathy/ns-O-RAN-flexric/mmwave-LENA-oran/GUI
@@ -134,37 +133,34 @@ PATHS REFERENCE
   OPTION C: FULLY MANUAL — GRU SCENARIO (step by step)
 ================================================================================
 
-  ---- STEP 0: KILL ALL STALE PROCESSES (ALWAYS DO THIS FIRST) ----
+  ---- STEP 0: KILL ALL STALE PROCESSES AND CLEAR RUNTIME FILES ----
 
-    pkill -9 -f 'nearRT-RIC'
-    pkill -9 -f 'ns3.42'
-    pkill -9 -f 'xapp_handover_gru'
-    pkill -9 -f 'xapp_lb_awf'
-    pkill -9 -f 'xapp_rc_handover_ctrl'
-    pkill -9 -f 'xApp_trigger.py'
-    pkill -9 -f 'sim_data_pusher'
-    pkill -9 -f 'gru_xapp.py'
+    # ONE COMMAND does everything:
+    bash /home/omar_farouk/open-ran-clean/kill_sim.sh
 
-    # CRITICAL — clear stale E2 data from previous runs:
-    > /tmp/flexric.log
-
-    sleep 3
+    # This kills all processes, frees ports, and clears:
+    #   /tmp/flexric.log, /tmp/farouk_*.log
+    #   ~/handover.csv (reset to header), ~/lstm_features.csv, ~/kpm_handover_features.csv
 
   ---- STEP 1: START DOCKER (InfluxDB + FastAPI backend) ----
 
     cd /home/omar_farouk/open-ran-clean/yousef_fathy/ns-O-RAN-flexric/mmwave-LENA-oran/GUI
     docker compose up -d influxdb gui
-    sleep 5
+
+    # Wait for InfluxDB then reset its schema (prevents field-type conflicts):
+    sleep 10
+    curl -s -X POST "http://localhost:8086/query" --data-urlencode "q=DROP DATABASE influx"
+    curl -s -X POST "http://localhost:8086/query" --data-urlencode "q=CREATE DATABASE influx"
 
   ---- STEP 2: START FLEXRIC ----
 
     /home/omar_farouk/open-ran-clean/yousef_fathy/flexric/build/examples/ric/nearRT-RIC \
       -c /home/omar_farouk/open-ran-clean/yousef_fathy/flexric/flexric.conf \
-      > /tmp/farouk_flexric_stdout.log 2>&1 &
+      > /tmp/flexric.log 2>&1 &
 
-    # Wait until FlexRIC is listening on port 36421 before continuing:
-    watch -n 1 "ss -tlnp | grep ':36421'"
-    # Press Ctrl+C once it shows output
+    # Wait until FlexRIC is listening on SCTP port 36421 before continuing:
+    watch -n 1 "ss -Snp | grep ':36421'"
+    # Press Ctrl+C once it shows LISTEN
 
   ---- STEP 3a: START GRU PYTHON SERVICE ----
 
@@ -191,10 +187,11 @@ PATHS REFERENCE
 
   ---- STEP 3c: WAIT FOR E2 CONNECTIONS ----
 
-    # Keep running this every 10s until you see 7:
-    grep -c "E2 SETUP-REQUEST" /tmp/flexric.log
-    # Target = 7  (one per mmWave cell)
-    # Usually takes 30-60 seconds
+    # Keep running this every 10s until count = 7:
+    ss -Snp | grep ':36421' | grep -c ESTAB
+    # Target = 7  (one SCTP ESTABLISHED connection per mmWave cell)
+    # NOTE: FlexRIC does NOT write to stdout — /tmp/flexric.log stays empty (that's normal)
+    # Usually takes 2-5 minutes for ns-3 to fully initialize
 
   ---- STEP 4: START DATA PUSHER ----
 
@@ -255,18 +252,9 @@ EOF
   OPTION D: FULLY MANUAL — LOAD BALANCING (LB) SCENARIO
 ================================================================================
 
-  ---- STEP 0: KILL ALL STALE PROCESSES (same as GRU — always first) ----
+  ---- STEP 0: KILL ALL STALE PROCESSES AND CLEAR RUNTIME FILES ----
 
-    pkill -9 -f 'nearRT-RIC'
-    pkill -9 -f 'ns3.42'
-    pkill -9 -f 'xapp_handover_gru'
-    pkill -9 -f 'xapp_lb_awf'
-    pkill -9 -f 'xapp_rc_handover_ctrl'
-    pkill -9 -f 'xApp_trigger.py'
-    pkill -9 -f 'sim_data_pusher'
-    pkill -9 -f 'gru_xapp.py'
-    > /tmp/flexric.log
-    sleep 3
+    bash /home/omar_farouk/open-ran-clean/kill_sim.sh
 
   ---- STEP 1: START DOCKER ----
 
@@ -278,11 +266,11 @@ EOF
 
     /home/omar_farouk/open-ran-clean/yousef_fathy/flexric/build/examples/ric/nearRT-RIC \
       -c /home/omar_farouk/open-ran-clean/yousef_fathy/flexric/flexric.conf \
-      > /tmp/farouk_flexric_stdout.log 2>&1 &
+      > /tmp/flexric.log 2>&1 &
 
-    # Wait for port 36421:
-    watch -n 1 "ss -tlnp | grep ':36421'"
-    # Ctrl+C once it appears
+    # Wait for SCTP port 36421:
+    watch -n 1 "ss -Snp | grep ':36421'"
+    # Ctrl+C once it shows LISTEN
 
   ---- STEP 3: START NS-3 WITH LB SCENARIO ----
     NOTE: NO GRU Python service needed for LB.
@@ -301,8 +289,8 @@ EOF
 
   ---- STEP 4: WAIT FOR E2 CONNECTIONS ----
 
-    grep -c "E2 SETUP-REQUEST" /tmp/flexric.log
-    # Keep running until count = 7
+    ss -Snp | grep ':36421' | grep -c ESTAB
+    # Keep running until count = 7 (one SCTP ESTAB per mmWave cell)
 
   ---- STEP 5: START DATA PUSHER ----
 
@@ -346,7 +334,7 @@ EOF
     echo "=== Handovers ===" && \
     wc -l /home/omar_farouk/handover.csv 2>/dev/null ; \
     echo "=== E2 connections ===" && \
-    grep -c "E2 SETUP-REQUEST" /tmp/flexric.log 2>/dev/null ; \
+    ss -Snp 2>/dev/null | grep ':36421' | grep -c ESTAB ; \
     echo "=== 3D Results folders ===" && \
     ls /home/omar_farouk/open-ran-clean/3D_GUI_Sim_Results/ 2>/dev/null
 
@@ -415,6 +403,29 @@ EOF
   CODE FIXES & ACCURACY NOTES
 ================================================================================
 
+  FIX 5 — CSV STALE DATA ACROSS RUNS (fixed 2026-05-05)
+  -------------------------------------------------------
+  PROBLEM: ns-3 APPENDS to ~/handover.csv and ~/lstm_features.csv (never truncates).
+           Previous run data stayed in these files, polluting saved results and xApp window.
+  FIX:     kill_sim.sh, gru.sh, and controller.py now reset these CSVs before each run.
+
+  FIX 4 — INFLUXDB SCHEMA CONFLICT + E2 DETECTION DELAY (fixed 2026-05-05)
+  --------------------------------------------------------------------------
+  PROBLEM 1: InfluxDB field-type conflicts caused 400 errors in the pusher,
+             silently dropping KPI rows and leaving the 2D GUI empty.
+             Root cause: negative SINR values (-10.5 dB) were written as strings
+             (broken isdigit() check on negative numbers), then positives as floats.
+  FIX 1:    sim_data_pusher.py now uses _to_float() (float() + math.isfinite()),
+             correctly converting all numeric values including negatives and inf/nan.
+             controller.py also drops+recreates the InfluxDB 'influx' database on
+             every launch, so stale schemas can never carry over.
+
+  PROBLEM 2: Controller waited up to 3 minutes for E2 connections by reading
+             /tmp/flexric.log for 'E2 SETUP-REQUEST' — but FlexRIC never writes
+             to stdout, so the file stays empty and the full 180s timeout always fired.
+  FIX 2:    Controller now counts SCTP ESTABLISHED connections on port 36421 directly.
+             E2 detection is instant once ns-3 connects (~2-5 min startup, not +3 min extra).
+
   FIX 3 — PP REGRESSION AFTER sim006 (fixed 2026-05-05)
   -------------------------------------------------------
   PROBLEM: sim007/sim009 had 9.76% / 4.55% PP rate — worse than sim006 (1.72%).
@@ -471,9 +482,10 @@ EOF
   CAUSE:   gru_xapp.py (port 5000) not running, or LSTM_SERVICE_URL not set.
   FIX:     Start gru_xapp.py first, then export LSTM_SERVICE_URL=http://localhost:5000
 
-  PROBLEM: grep shows 0 E2 SETUP-REQUESTs forever
-  CAUSE:   Wrong log file. FlexRIC ONLY writes to /tmp/flexric.log.
-  FIX:     grep -c "E2 SETUP-REQUEST" /tmp/flexric.log   (not farouk_flexric.log)
+  PROBLEM: E2 connection count shows 0 forever
+  CAUSE:   FlexRIC does NOT write to stdout — /tmp/flexric.log will be empty (this is normal).
+           Use SCTP connection count instead of log grep.
+  FIX:     ss -Snp | grep ':36421' | grep -c ESTAB   (counts live SCTP E2 connections)
 
   PROBLEM: ns-3 or FlexRIC won't start — "address already in use"
   CAUSE:   Previous run left zombie processes.
