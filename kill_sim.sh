@@ -72,6 +72,20 @@ echo "time_sec,ue_id,from_cell,to_cell,event,executed_ok" > /home/omar_farouk/ha
 > /home/omar_farouk/kpm_handover_features.csv 2>/dev/null \
     && echo "    ✓ cleared kpm_handover_features.csv" || true
 
+# ── 5. Generate plots for latest sim if missing ──────────────────────────────
+echo ""
+echo "[5/5] Checking for missing plots in latest sim result..."
+LATEST_SIM=$(ls -td /home/omar_farouk/open-ran-clean/3D_GUI_Sim_Results/sim*_gru_scenario 2>/dev/null | head -1)
+if [ -n "$LATEST_SIM" ] && [ ! -d "$LATEST_SIM/plots" ]; then
+    echo "    Plots missing — generating now..."
+    python3 /home/omar_farouk/open-ran-clean/5g-gui-v2/generate_plots.py "$LATEST_SIM" \
+        && echo "    ✓ Plots generated" || echo "    ⚠ Plot generation failed (check manually)"
+elif [ -n "$LATEST_SIM" ]; then
+    echo "    ✓ Plots already exist in $(basename $LATEST_SIM)"
+else
+    echo "    - No sim result directories found"
+fi
+
 echo ""
 echo "╔══════════════════════════════════════════════════╗"
 echo "║  ALL CLEAR — Everything killed, ports freed.     ║"
