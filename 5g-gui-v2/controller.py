@@ -31,11 +31,14 @@ NS3_DIR     = f"{ROOT_DIR}/ns-O-RAN-flexric/mmwave-LENA-oran"
 GUI_DIR     = f"{NS3_DIR}/GUI"
 XAPP_DIR    = f"{GUI_DIR}/FlexRIC xApp GUI trigger"
 
-# xApp binaries — chosen based on scenario
+# xApp binaries — chosen based on scenario / xapp_type
 XAPP_RC_BIN  = f"{ROOT_DIR}/flexric/build/examples/xApp/c/ctrl/xapp_rc_handover_ctrl"
 XAPP_GRU_BIN = f"{ROOT_DIR}/flexric/build/examples/xApp/c/handover_gru/xapp_handover_gru"
+XAPP_RL_BIN  = f"{ROOT_DIR}/flexric/build/examples/xApp/c/handover_rl/xapp_handover_rl"
 GRU_SERVICE  = f"{ROOT_DIR}/HANDOVER_xApp_Test/gru_xapp.py"
+RL_SERVICE   = "/home/omar_farouk/open-ran-clean/omar_salama/rl_xapp.py"
 GRU_PORT     = 5000
+RL_PORT      = 5001
 
 LOG = {
     "flexric":    "/tmp/flexric.log",        # FlexRIC always writes here internally
@@ -43,6 +46,7 @@ LOG = {
     "pusher":     "/tmp/farouk_pusher.log",
     "xapp":       "/tmp/farouk_xapp.log",
     "gru":        "/tmp/farouk_gru.log",
+    "rl":         "/tmp/farouk_rl_xapp.log",
 }
 
 RESULTS_DIR   = "/home/omar_farouk/open-ran-clean/3D_GUI_Sim_Results"
@@ -328,16 +332,23 @@ def _xapp_proc_alive() -> bool:
 
 # ── Status ─────────────────────────────────────────────────────────────────────
 def _xapp_any_alive() -> bool:
-    return _alive("xapp_gru") or _xapp_proc_alive()
+    return _alive("xapp_gru") or _alive("xapp_rl") or _xapp_proc_alive()
+
+def _active_xapp_type() -> str:
+    if _alive("xapp_rl"):  return "rl"
+    if _alive("xapp_gru"): return "gru"
+    if _xapp_proc_alive(): return "rc"
+    return "none"
 
 @app.get("/ctrl/status")
 async def get_status():
     return {
-        "docker":     _docker_running(),
-        "flexric":    _alive("flexric"),
-        "simulation": _alive("simulation"),
-        "pusher":     _alive("pusher"),
-        "xapp":       _xapp_any_alive(),
+        "docker":           _docker_running(),
+        "flexric":          _alive("flexric"),
+        "simulation":       _alive("simulation"),
+        "pusher":           _alive("pusher"),
+        "xapp":             _xapp_any_alive(),
+        "active_xapp_type": _active_xapp_type(),
     }
 
 # ── Scenarios ──────────────────────────────────────────────────────────────────
@@ -381,6 +392,7 @@ async def stop_flexric():
 # ── Simulation ─────────────────────────────────────────────────────────────────
 class SimParams(BaseModel):
     scenario:   str = "gru_scenario"
+    xapp_type:  str = "gru"          # "gru" or "rl"
     n_ues:      int = 20
     n_mmwave:   int = 7
     sim_time:   int = 60
@@ -479,12 +491,14 @@ async def launch_all(params: SimParams, bg: BackgroundTasks):
     return {"status": "launching"}
 
 async def _launch_all_task(params: SimParams):
-    is_gru = (params.scenario == "gru_scenario")
+    is_gru = (params.xapp_type == "gru")
+    is_rl  = (params.xapp_type == "rl")
 
     # 0 — Kill ALL stale processes before starting fresh
-    subprocess.run("pkill -9 -f 'xapp_handover_gru|xapp_rc_handover_ctrl'", shell=True)
+    subprocess.run("pkill -9 -f 'xapp_handover_gru|xapp_handover_rl|xapp_rc_handover_ctrl'", shell=True)
     subprocess.run("pkill -9 -f 'sim_data_pusher'", shell=True)
     subprocess.run("pkill -9 -f 'gru_xapp.py'", shell=True)
+    subprocess.run("pkill -9 -f 'rl_xapp.py'", shell=True)
     subprocess.run("pkill -9 -f 'nearRT-RIC'", shell=True)
     subprocess.run("pkill -9 -f 'ns3.42'", shell=True)
     for key in list(_procs.keys()):
@@ -524,12 +538,18 @@ async def _launch_all_task(params: SimParams):
     if not _alive("flexric"):
         return   # FlexRIC failed to start
 
-    # 3a — GRU Python service (only for gru_scenario, must start before C xApp)
+    # 3a — ML Python service (GRU on port 5000, RL on port 5001)
     if is_gru:
         _popen("gru_service",
                ["python3", GRU_SERVICE],
                cwd=os.path.dirname(GRU_SERVICE), log_key="gru",
                env={**os.environ, "GRU_PORT": str(GRU_PORT)})
+        await asyncio.sleep(3)
+    elif is_rl:
+        _popen("rl_service",
+               ["python3", RL_SERVICE],
+               cwd=os.path.dirname(RL_SERVICE), log_key="rl",
+               env={**os.environ, "RL_PORT": str(RL_PORT)})
         await asyncio.sleep(3)
 
     # Clear runtime CSVs — ns-3 APPENDS, so stale data from previous run must be wiped
@@ -580,10 +600,16 @@ async def _launch_all_task(params: SimParams):
 
     # 5 — xApp
     if is_gru:
-        # GRU scenario: run xapp_handover_gru directly (it loops internally)
+        # GRU xApp: communicates with gru_xapp.py on port 5000
         if not _alive("xapp_gru"):
             env = {**os.environ, "LSTM_SERVICE_URL": f"http://localhost:{GRU_PORT}"}
             _popen("xapp_gru", [XAPP_GRU_BIN, "-c", FLEXRIC_CONF],
+                   cwd=NS3_DIR, log_key="xapp", env=env)
+    elif is_rl:
+        # RL xApp: communicates with rl_xapp.py on port 5001
+        if not _alive("xapp_rl"):
+            env = {**os.environ, "RL_SERVICE_URL": f"http://localhost:{RL_PORT}"}
+            _popen("xapp_rl", [XAPP_RL_BIN, "-c", FLEXRIC_CONF],
                    cwd=NS3_DIR, log_key="xapp", env=env)
     else:
         # Default: use rc_handover_ctrl via trigger server
@@ -604,7 +630,7 @@ async def _launch_all_task(params: SimParams):
         await asyncio.sleep(5)
 
     global _last_result
-    _last_result = save_sim_results(tag=params.scenario)
+    _last_result = save_sim_results(tag=f"{params.scenario}_{params.xapp_type}")
 
 # ── Last result ────────────────────────────────────────────────────────────────
 @app.get("/ctrl/last-result")
@@ -623,8 +649,9 @@ async def stop_all():
         pass
     for key in list(_procs.keys()):
         _kill(key)
-    subprocess.run("pkill -9 -f 'xapp_rc_handover_ctrl|xapp_handover_gru'", shell=True)
+    subprocess.run("pkill -9 -f 'xapp_rc_handover_ctrl|xapp_handover_gru|xapp_handover_rl'", shell=True)
     subprocess.run("pkill -9 -f 'gru_xapp.py'", shell=True)
+    subprocess.run("pkill -9 -f 'rl_xapp.py'", shell=True)
     subprocess.run("pkill -9 -f 'sim_data_pusher'", shell=True)
     subprocess.run("pkill -9 -f 'nearRT-RIC'", shell=True)
     subprocess.run("pkill -9 -f 'ns3.42'", shell=True)

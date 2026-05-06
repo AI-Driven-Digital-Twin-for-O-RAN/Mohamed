@@ -38,19 +38,14 @@ target_link_libraries(orange_xapp_energy_saving_with_CU
     sctp
     dl
 )
-add_executable(orange_xapp_energy_saving_with_LB
-    orange_energy_saving_with_LB.c
-    ../../../../src/util/alg_ds/alg/defer.c
-)
-
-# Link necessary libraries
-target_link_libraries(orange_xapp_energy_saving_with_LB
-    PUBLIC
-    e42_xapp
-    pthread
-    sctp
-    dl
-)
+# orange_energy_saving_with_LB.c removed — source file no longer present
+# add_executable(orange_xapp_energy_saving_with_LB
+#     orange_energy_saving_with_LB.c
+#     ../../../../src/util/alg_ds/alg/defer.c
+# )
+# target_link_libraries(orange_xapp_energy_saving_with_LB
+#     PUBLIC e42_xapp pthread sctp dl
+# )
 
 
 

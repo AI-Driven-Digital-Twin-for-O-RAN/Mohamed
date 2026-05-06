@@ -238,6 +238,21 @@ async function pollCtrlStatus() {
     _setCompStatus('simulation', s.simulation);
     _setCompStatus('pusher',     s.pusher);
     _setCompStatus('xapp',       s.xapp);
+    // Update xApp label based on which model is actually running
+    const xappNameEl = document.getElementById('xapp-name-label');
+    const xappSubEl  = document.getElementById('xapp-sub-label');
+    if (xappNameEl) {
+      if (s.active_xapp_type === 'rl') {
+        xappNameEl.textContent = 'RL xAPP (DDQN)';
+        if (xappSubEl) xappSubEl.textContent = 'Deep Q-Network · port 5001';
+      } else if (s.active_xapp_type === 'gru') {
+        xappNameEl.textContent = 'GRU xAPP';
+        if (xappSubEl) xappSubEl.textContent = 'GRU Predictor · port 5000';
+      } else {
+        xappNameEl.textContent = 'xAPP';
+        if (xappSubEl) xappSubEl.textContent = 'Handover Controller';
+      }
+    }
   } catch (_) {}
 }
 

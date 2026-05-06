@@ -47,6 +47,12 @@ export const CONFIG = {
       loadRange: [0.55, 0.75], spikeFraction: 0.33, spikeLoad: 0.91,
       description: 'GRU handover optimization — 1 LTE + 7 mmWave, 20 UEs',
     },
+    RL_SCENARIO: {
+      label: 'RL xApp (DDQN)',
+      cellCount: 8, totalUEs: 20,
+      loadRange: [0.55, 0.75], spikeFraction: 0.33, spikeLoad: 0.91,
+      description: 'DDQN reinforcement learning handover — 1 LTE + 7 mmWave, 20 UEs',
+    },
     LB_SCENARIO: {
       label: 'Load Balance',
       cellCount: 8, totalUEs: 20,
@@ -95,6 +101,13 @@ export const CONFIG = {
       start_url: 'http://localhost:38868/',
       stop_url:  'http://localhost:38869/',
       inference_server: 'http://localhost:5000',
+    },
+    RL_HANDOVER: {
+      display_name: 'RL xAPP (DDQN)',
+      trigger_condition: 'cell.load > 0.70',
+      max_concurrent: 2, cooldown_seconds: 30,
+      rssi_threshold_dbm: -100, hysteresis_db: 3, time_to_trigger_ms: 320,
+      inference_server: 'http://localhost:5001',
     },
     LOAD_BALANCER: {
       display_name: 'LB xAPP',

@@ -675,4 +675,23 @@ EOF
     cd /home/omar_farouk/open-ran-clean/yousef_fathy/flexric/build
     make xapp_handover_rl -j$(nproc)
 
+  3D GUI CONTROL PANEL — CORRECT xApp NAME DISPLAY:
+    The 3D GUI control panel (port 3001) dynamically shows the correct xApp name:
+      - GRU simulation running → card shows "GRU xAPP / GRU Predictor · port 5000"
+      - RL  simulation running → card shows "RL xAPP (DDQN) / Deep Q-Network · port 5001"
+      - Nothing running        → card shows "xAPP / Handover Controller"
+
+    How it works:
+      - controller.py /ctrl/status now returns "active_xapp_type": "gru"/"rl"/"none"
+      - _xapp_any_alive() checks both xapp_gru AND xapp_rl processes
+      - index.html xApp card name uses id="xapp-name-label" (no longer hardcoded)
+      - main.js pollCtrlStatus() updates label every poll cycle (~3s)
+
+    Files modified for this fix:
+      5g-gui-v2/controller.py    — added _active_xapp_type(), xapp_type to SimParams,
+                                   RL launch path (rl_service + xapp_rl popen)
+      5g-gui-v2/index.html       — xApp card name made dynamic via id="xapp-name-label"
+      5g-gui-v2/src/main.js      — pollCtrlStatus() updates label from active_xapp_type
+      5g-gui-v2/src/config.js    — added RL_HANDOVER to XAPP_RULES, RL_SCENARIO to SCENARIOS
+
 ================================================================================
