@@ -2082,6 +2082,258 @@ def quick_reference():
     return e
 
 # ══════════════════════════════════════════════════════════════════════════════
+# CRITICAL CHAPTER — AI MODEL INSIDE O-RAN
+# ══════════════════════════════════════════════════════════════════════════════
+def chapter_ai_in_oran():
+    e = []
+    e.append(PageBreak())
+    e.append(ch_header("KEY", "Inserting an AI Model (GRU) Inside an O-RAN System"))
+    e.append(sp())
+    e.append(nb("This chapter explains THE most important concept in this thesis: HOW and WHERE the GRU neural network is embedded inside a real O-RAN architecture — and why this is a research contribution."))
+    e.append(sp(0.5))
+
+    # ── Section 1 ─────────────────────────────────────────────────────────────
+    e.append(sec("1. Why Put AI Inside the Network?"))
+    e.append(p("Traditional mobile networks make handover decisions using fixed rules written by engineers: if the neighbor cell's signal (SINR) exceeds the serving cell's signal by more than a fixed threshold (e.g., 2 dB) for a set time, trigger a handover. These rules never change, cannot adapt, and cannot look ahead. They can only react to what already happened — they are <b>reactive</b>, not <b>proactive</b>."))
+    e.append(p("An AI model like GRU is different. After training on thousands of handover events, the GRU learns temporal patterns: <i>\"when SINR has been declining for 0.5 seconds at this rate, the UE is moving toward cell 3 — hand over NOW, before the signal fully degrades.\"</i> This is prediction, not reaction. The GRU uses the trend in the data, not just the latest sample."))
+    e.append(p("The key enabler is <b>O-RAN</b>. In traditional (non-open) RAN, the base station software is a closed black box from a vendor like Nokia or Ericsson — you cannot insert your own algorithm. O-RAN's open architecture provides the <b>near-RT RIC</b> (Radio Intelligent Controller), an open platform where custom logic — called <b>xApps</b> — can run. Our GRU lives inside an xApp, which runs inside the near-RT RIC, which controls the gNB in real time."))
+    e.append(nb("Simple analogy: O-RAN is like a smartphone with an open operating system. You can install any app (xApp) including AI. Traditional RAN is like a locked-down Nokia phone — you can only use what the manufacturer pre-installed."))
+    e.append(sp(0.3))
+
+    # ── Section 2 ─────────────────────────────────────────────────────────────
+    e.append(sec("2. The Three O-RAN AI Insertion Points — Where Can AI Live?"))
+    e.append(p("O-RAN defines three distinct layers where intelligence can be placed. Each has a different latency budget and role. The table below shows all three and which one our GRU uses:"))
+    e.append(sp(0.2))
+    e.append(simple_table(
+        ["O-RAN Layer", "Component", "Latency Budget", "AI Role", "Our Use"],
+        [
+            ["Non-RT RIC", "Service Mgmt & Orchestration (SMO)", "> 1 second", "Long-term optimization: train models offline, push updated weights, set network policies", "Could retrain GRU here with new sim data"],
+            ["Near-RT RIC (xApp)", "nearRT-RIC (FlexRIC)", "10 ms – 1 second", "Real-time per-UE decisions: handover, beam management, load balancing", "✓ THIS IS WHERE OUR GRU RUNS"],
+            ["E2 Node (gNB)", "O-DU / O-CU inside gNB", "< 10 ms", "Ultra-low latency: beam switching, scheduling. Simple rules only — heavy ML too slow here", "Not used — GRU inference (~2ms) runs on RIC side"],
+        ],
+        col_widths=[2.8*cm, 3.5*cm, 2.8*cm, 5.5*cm, 3.2*cm]
+    ))
+    e.append(sp(0.3))
+    e.append(p("The near-RT RIC is the correct layer for our GRU because: (1) GRU inference takes approximately 2–5 milliseconds, well within the 10ms–1000ms window. (2) It receives per-UE SINR and RSRP data every 50 milliseconds via KPM reports — enough to maintain a rolling 10-sample window. (3) It can send an RC control command back to the gNB within the latency budget. It would be too slow in non-RT RIC (decisions take >1s — the handover opportunity is gone) and too slow for the E2 node itself (gNB needs <10ms for beamforming)."))
+    e.append(sp(0.3))
+
+    # ── Section 3 ─────────────────────────────────────────────────────────────
+    e.append(sec("3. The Complete AI-O-RAN Integration Architecture"))
+    e.append(p("The diagram below (described in text) shows every component and every connection in our system, from the UE's signal being measured in NS-3 all the way to the GRU model choosing the best cell and the handover being executed:"))
+    e.append(sp(0.2))
+    e.append(code("┌──────────────────────────────────────────────────────────────────┐"))
+    e.append(code("│  NS-3 gNB (simulated base station — gru_scenario.cc)             │"))
+    e.append(code("│  Measures: SINR, RSRP for all 20 UEs, 7 cells, every 0.05 sim-s │"))
+    e.append(code("└──────────────────┬───────────────────────────────────────────────┘"))
+    e.append(code("                   │  KPM Report (E2SM-KPM service model)            "))
+    e.append(code("                   │  Sent over E2 interface (SCTP port 36421)        "))
+    e.append(code("                   ↓                                                  "))
+    e.append(code("┌──────────────────────────────────────────────────────────────────┐"))
+    e.append(code("│  FlexRIC nearRT-RIC  (open-source O-RAN near-RT RIC, in C)       │"))
+    e.append(code("│  Receives KPM reports, routes data to registered xApps           │"))
+    e.append(code("└──────────────────┬───────────────────────────────────────────────┘"))
+    e.append(code("                   │  Delivers KPM data to subscribed xApp           "))
+    e.append(code("                   ↓                                                  "))
+    e.append(code("┌──────────────────────────────────────────────────────────────────┐"))
+    e.append(code("│  xapp_handover_gru  (C xApp running inside FlexRIC)              │"))
+    e.append(code("│  1. Extracts UE features from KPM data                           │"))
+    e.append(code("│  2. Maintains 10-sample rolling window per UE                    │"))
+    e.append(code("│  3. Checks A3 gate: neighbor_SINR > serving_SINR + 2.0 dB?      │"))
+    e.append(code("│  4. If YES → HTTP POST /predict to GRU Python service            │"))
+    e.append(code("└──────────────────┬───────────────────────────────────────────────┘"))
+    e.append(code("                   │  HTTP POST localhost:5000/predict               "))
+    e.append(code("                   │  Body: {ue_id, window: [10 feature vectors]}    "))
+    e.append(code("                   ↓                                                  "))
+    e.append(code("┌──────────────────────────────────────────────────────────────────┐"))
+    e.append(code("│  gru_xapp.py  (Python Flask + Keras GRU model, port 5000)        │"))
+    e.append(code("│  1. Receives 10-sample window                                    │"))
+    e.append(code("│  2. Normalizes features                                          │"))
+    e.append(code("│  3. Runs GRU model forward pass (10 time steps)                  │"))
+    e.append(code("│  4. Softmax → probabilities for each of 7 cells                  │"))
+    e.append(code("│  5. Returns: {best_cell: 3, confidence: 0.89}                    │"))
+    e.append(code("└──────────────────┬───────────────────────────────────────────────┘"))
+    e.append(code("                   │  HTTP response: {best_cell_id, confidence}      "))
+    e.append(code("                   ↓                                                  "))
+    e.append(code("┌──────────────────────────────────────────────────────────────────┐"))
+    e.append(code("│  xapp_handover_gru  (decision made)                              │"))
+    e.append(code("│  Constructs E2SM-RC CONTROL message: move UE X to cell Y         │"))
+    e.append(code("│  Sets cooldown_timer[ue_id] = now + 5.0 sim-seconds              │"))
+    e.append(code("└──────────────────┬───────────────────────────────────────────────┘"))
+    e.append(code("                   │  RC CONTROL message (E2SM-RC service model)     "))
+    e.append(code("                   ↓                                                  "))
+    e.append(code("┌──────────────────────────────────────────────────────────────────┐"))
+    e.append(code("│  FlexRIC nearRT-RIC                                              │"))
+    e.append(code("│  Forwards RC CONTROL to gNB via E2 interface                     │"))
+    e.append(code("└──────────────────┬───────────────────────────────────────────────┘"))
+    e.append(code("                   │  E2 CONTROL message to NS-3                     "))
+    e.append(code("                   ↓                                                  "))
+    e.append(code("┌──────────────────────────────────────────────────────────────────┐"))
+    e.append(code("│  NS-3 gNB                                                        │"))
+    e.append(code("│  Executes handover: UE moves from old cell to new cell           │"))
+    e.append(code("│  Writes row to handover.csv                                      │"))
+    e.append(code("└──────────────────────────────────────────────────────────────────┘"))
+    e.append(sp(0.3))
+
+    # ── Section 4 ─────────────────────────────────────────────────────────────
+    e.append(sec("4. The xApp — The Bridge Between O-RAN and the AI Model"))
+    e.append(p("The xApp (xapp_handover_gru, compiled from best2.c) is the critical bridge. It does not run standalone — it runs <b>inside</b> the FlexRIC near-RT RIC framework. This is important: the xApp has direct access to FlexRIC's E2 API for receiving reports and sending commands. Here is every step of the xApp lifecycle:"))
+    e.append(sp(0.2))
+    steps = [
+        ("Step 1 — xApp Registration", "When xapp_handover_gru starts, it calls FlexRIC's registration API. FlexRIC records this xApp as active and ready to receive E2 data. Without registration, no data flows to the xApp."),
+        ("Step 2 — KPM Subscription", "The xApp sends a subscription request to FlexRIC: 'give me E2SM-KPM reports for all UEs, reporting period 50ms.' FlexRIC forwards this subscription request to NS-3 via the E2 interface. NS-3 acknowledges and begins sending periodic KPM reports."),
+        ("Step 3 — Indication Callback", "Every 50ms of simulation time, NS-3 sends a KPM INDICATION message to FlexRIC. FlexRIC calls the xApp's registered callback function (handle_indication) with the fresh KPM data. This is how the xApp gets live network measurements without polling."),
+        ("Step 4 — Feature Extraction", "Inside handle_indication(), the xApp extracts: serving cell SINR, RSRP, UE ID, and SINR/RSRP for all 6 neighbor cells. These 14+ values form one feature vector for this time step."),
+        ("Step 5 — Rolling Window Maintenance", "The xApp maintains a circular buffer (ring buffer) of the last 10 feature vectors per UE. Each new KPM report pushes out the oldest sample. After 10 reports (0.5 sim-seconds), the window is full and ready for GRU input."),
+        ("Step 6 — A3 Gate (Pre-filter)", "Before calling the expensive GRU service, the xApp checks the A3 condition: is any neighbor cell's SINR > serving cell SINR + 2.0 dB? If no neighbor exceeds this threshold, there is no handover opportunity — skip the AI call entirely. This gate prevents unnecessary GRU inference and reduces latency."),
+        ("Step 7 — AI Call (HTTP POST)", "If the A3 gate fires, the xApp serializes the 10-sample window to JSON and sends an HTTP POST request to http://localhost:5000/predict. This call crosses the C/Python boundary: the C xApp talks to the Python Flask service."),
+        ("Step 8 — Decision and RC Command", "The GRU service returns the best cell ID and confidence score. The xApp constructs an E2SM-RC CONTROL message: 'move UE X from cell A to cell Y.' This message is sent through FlexRIC to the NS-3 gNB, which executes the handover."),
+        ("Step 9 — Cooldown Protection", "Immediately after any handover, the xApp sets cooldown_timer[ue_id] = current_sim_time + 5.0. For the next 5 simulation seconds, any A3 events for this UE are ignored. This prevents the ping-pong effect where the UE bounces back immediately."),
+    ]
+    for title, desc in steps:
+        e.append(sub(title))
+        e.append(p(desc))
+    e.append(sp(0.3))
+
+    # ── Section 5 ─────────────────────────────────────────────────────────────
+    e.append(sec("5. The GRU Model — What It Sees, What It Thinks, What It Outputs"))
+    e.append(p("When the xApp calls /predict, the GRU model receives a tensor of shape <b>[1, 10, F]</b> — one sample, 10 time steps, F features per step. Here F includes the serving cell SINR, serving cell RSRP, and the SINR/RSRP values for all 6 neighbor cells, plus UE velocity if available."))
+    e.append(sp(0.2))
+    e.append(simple_table(
+        ["Input Feature", "Unit", "Typical Range", "Why the GRU Needs It"],
+        [
+            ["serving_SINR", "dB", "−5 to +30 dB", "Primary quality indicator — declining trend signals need to move"],
+            ["serving_RSRP", "dBm", "−110 to −70 dBm", "Signal power — also declining as UE moves away from serving cell"],
+            ["neighbor_SINR[0..5]", "dB", "−10 to +30 dB", "All 6 neighbors — GRU identifies which is getting stronger"],
+            ["neighbor_RSRP[0..5]", "dBm", "−120 to −70 dBm", "Power for each neighbor — confirms SINR trend"],
+            ["serving_cell_id", "integer", "0 to 6", "Context: which cell we are currently on"],
+            ["velocity_estimate", "m/s", "0 to 3 m/s", "Speed of UE — faster UE needs more proactive handover"],
+        ],
+        col_widths=[4*cm, 1.8*cm, 3.5*cm, 7.2*cm]
+    ))
+    e.append(sp(0.3))
+    e.append(p("The GRU processes these 10 time steps sequentially. At each step, the GRU's update gate decides how much of the previous hidden state to keep (memory of the past) and how much to update with the new input. After processing all 10 steps, the final hidden state h₁₀ encodes the entire 0.5-second trend. A Dense layer and Softmax activation then convert this into a probability vector over all 7 cells."))
+    e.append(sp(0.2))
+    e.append(formula("Output: [p_cell0, p_cell1, p_cell2, p_cell3, p_cell4, p_cell5, p_cell6]"))
+    e.append(formula("Best cell = argmax([p_cell0 ... p_cell6])"))
+    e.append(formula("Example: [0.01, 0.04, 0.02, 0.89, 0.02, 0.01, 0.01] → cell 3 (89% confidence)"))
+    e.append(sp(0.3))
+
+    # ── Section 6 ─────────────────────────────────────────────────────────────
+    e.append(sec("6. A Complete End-to-End Decision Walkthrough (With Real Numbers)"))
+    e.append(p("Here is a single handover decision traced from raw signal to executed handover, using realistic values from our simulation:"))
+    e.append(sp(0.2))
+    walkthrough = [
+        ("t = 10.00s", "KPM arrives for UE 5. Serving cell = 1, serving SINR = 15.3 dB. Neighbor cell 3 SINR = 17.8 dB. Delta = 2.5 dB > 2.0 dB threshold → A3 gate FIRES."),
+        ("t = 10.00s", "xApp checks cooldown_timer[5] = 0.0 → no cooldown active. Proceed to GRU."),
+        ("t = 10.00s", "xApp serializes rolling window for UE 5 (10 samples, last 0.5s):\n  [t−9: SINR=16.1, t−8: SINR=15.9, t−7: SINR=15.7, ..., t−0: SINR=15.3]\n  Trend: gradual decline → UE moving away from cell 1."),
+        ("t = 10.00s", "HTTP POST to localhost:5000/predict with the 10-sample window JSON."),
+        ("t = 10.002s", "GRU runs forward pass (10 time steps, ~2ms). Softmax output:\n  [0.01, 0.04, 0.02, 0.89, 0.02, 0.01, 0.01]\n  Best cell = 3, confidence = 89%."),
+        ("t = 10.002s", "xApp sends E2SM-RC CONTROL: 'move UE 5 from cell 1 to cell 3.'"),
+        ("t = 10.003s", "NS-3 receives CONTROL, executes handover. UE 5 now attached to cell 3."),
+        ("t = 10.003s", "handover.csv row appended: 10.003, 5, 1, 3, A3_HO, True"),
+        ("t = 10.003s", "cooldown_timer[5] = 10.003 + 5.0 = 15.003. UE 5 is protected from ping-pong until t=15.003s."),
+    ]
+    for ts, desc in walkthrough:
+        e.append(sub(ts))
+        e.append(p(desc))
+    e.append(sp(0.3))
+
+    # ── Section 7 ─────────────────────────────────────────────────────────────
+    e.append(sec("7. Why This Is Novel — Traditional vs. GRU-in-O-RAN Comparison"))
+    e.append(p("Before this work, handover in LTE and early 5G was purely threshold-based. The gNB itself decided when to handover based on a fixed A3 rule — no learning, no prediction, no open API. The table below summarises every key difference:"))
+    e.append(sp(0.2))
+    e.append(simple_table(
+        ["Aspect", "Traditional A3-Only", "GRU Inside O-RAN (This Work)"],
+        [
+            ["Decision type", "Reactive — acts after signal already dropped below threshold", "Proactive — predicts best cell from 10-step SINR trend before drop"],
+            ["Intelligence", "Fixed threshold, same rule for all UEs and environments", "Learned from training data, adapts to patterns in UE movement"],
+            ["Ping-pong rate", "8–15% (literature values for LTE/5G)", "~3.2% (our sim011 result)"],
+            ["Adaptability", "None — engineer must manually tune thresholds", "Retrain model with new data to adapt to new environments"],
+            ["Architecture", "Closed RAN — proprietary vendor firmware", "Open RAN — FlexRIC xApp, open source, swappable"],
+            ["Integration point", "Inside gNB firmware (inaccessible)", "Near-RT RIC xApp (open, modifiable by researchers)"],
+            ["Vendor dependency", "High — locked to Nokia/Ericsson ecosystem", "None — FlexRIC + NS-3 + Keras are fully open source"],
+            ["Model swappability", "Impossible without vendor firmware update", "Swap gru_xapp.py model in minutes — same C xApp unchanged"],
+        ],
+        col_widths=[4.5*cm, 5.8*cm, 6.5*cm]
+    ))
+    e.append(sp(0.3))
+
+    # ── Section 8 ─────────────────────────────────────────────────────────────
+    e.append(sec("8. The C/Python Split — Why Two Separate Processes?"))
+    e.append(p("A natural question is: why is the xApp written in C (best2.c) while the GRU model runs in Python (gru_xapp.py)? Why not put everything in one program?"))
+    e.append(p("The answer is that <b>FlexRIC's xApp framework requires C/C++</b>. It exposes a C API for E2 communication. Writing the entire GRU inference in C would mean reimplementing Keras, TensorFlow, and all the neural network infrastructure in C — months of work, error-prone, and non-portable."))
+    e.append(p("Instead, we split the responsibilities: the C xApp handles all O-RAN protocol logic (E2SM-KPM subscription, RC command construction, FlexRIC API calls), and the Python Flask service handles all AI logic (model loading, feature preprocessing, GRU inference). They communicate over HTTP on localhost — a negligible latency of <1ms on the same machine."))
+    e.append(p("This split also means the AI model is completely swappable. If we want to replace GRU with an LSTM, Transformer, or Deep Q-Network, we only change gru_xapp.py. The C xApp code (best2.c) remains unchanged. This is clean modular design."))
+    e.append(sp(0.2))
+    e.append(simple_table(
+        ["Responsibility", "Handled By", "Language", "Reason"],
+        [
+            ["E2 protocol (KPM, RC)", "xapp_handover_gru (best2.c)", "C", "FlexRIC API is C-only"],
+            ["Rolling window management", "xapp_handover_gru", "C", "Low-level memory, tight loop"],
+            ["A3 gate check", "xapp_handover_gru", "C", "Simple arithmetic, no overhead"],
+            ["GRU model inference", "gru_xapp.py", "Python/Keras", "Keras/TF is Python-native"],
+            ["Feature normalization", "gru_xapp.py", "Python/NumPy", "NumPy scales easily"],
+            ["HTTP bridge", "Flask on port 5000", "Python", "Minimal code, standard interface"],
+        ],
+        col_widths=[4.5*cm, 4.8*cm, 3*cm, 5*cm]
+    ))
+    e.append(sp(0.3))
+
+    # ── Section 9 ─────────────────────────────────────────────────────────────
+    e.append(sec("9. Challenges in Integrating AI into O-RAN — and Our Solutions"))
+    e.append(simple_table(
+        ["Challenge", "The Problem", "Our Solution"],
+        [
+            ["Latency budget", "Near-RT RIC allows 10ms–1s. GRU must respond within this window.", "Flask+Keras inference ~2ms. Well within budget. Tested and verified."],
+            ["Sample starvation", "GRU needs 10 samples before first prediction. First 0.5 sim-sec, window is empty.", "xApp waits until window has 10 samples. Only first few HOs use fallback (pure A3)."],
+            ["C-Python boundary", "FlexRIC xApp must be C. GRU model must be Python/Keras.", "Split into two processes. HTTP on localhost is <1ms overhead."],
+            ["Ping-pong risk", "Even with GRU, a wrong prediction causes oscillation.", "5-second cooldown guard in xApp C code. Safety net independent of GRU."],
+            ["Training distribution", "Model trained in simulation, deployed in simulation. Sim-to-real gap?", "NS-3 mmWave model closely matches 3GPP channel models. Acceptable for research."],
+            ["Service startup order", "If NS-3 starts before GRU service, first A3 events have no AI response.", "gru.sh starts gru_xapp.py and waits 2 seconds before launching NS-3."],
+        ],
+        col_widths=[3.8*cm, 5.5*cm, 7*cm]
+    ))
+    e.append(sp(0.3))
+
+    # ── Section 10 ────────────────────────────────────────────────────────────
+    e.append(sec("10. How to Replace the GRU with a Different AI Model"))
+    e.append(p("Because the AI lives in a separate Flask service, swapping the model requires zero changes to the O-RAN infrastructure. Here are the exact steps:"))
+    e.append(b("Step 1: Train your new model (LSTM, Transformer, DQN, Random Forest, etc.) on the same feature vectors."))
+    e.append(b("Step 2: Save the model as a .keras or .h5 file (for Keras) or .pkl (for scikit-learn)."))
+    e.append(b("Step 3: In gru_xapp.py, replace the model = keras.models.load_model('best2.keras') line with your new model's loading code."))
+    e.append(b("Step 4: Ensure the /predict endpoint still accepts the same JSON input format (ue_id + 10-sample window) and returns the same {best_cell_id, confidence} response."))
+    e.append(b("Step 5: Restart gru_xapp.py. The C xApp (best2.c) and FlexRIC do not change at all."))
+    e.append(sp(0.2))
+    e.append(warn("The xApp C code sends the same HTTP POST regardless of which model is behind /predict. The O-RAN infrastructure (FlexRIC, E2 interface, NS-3 connection) is completely unaffected by a model swap. This modularity is a key advantage of the O-RAN approach."))
+    e.append(sp(0.3))
+
+    # ── Section 11 ────────────────────────────────────────────────────────────
+    e.append(sec("11. Expected Defense Questions on This Topic"))
+    e.append(sp(0.1))
+    qas = [
+        ("Why did you put the GRU in the near-RT RIC and not inside the gNB itself?",
+         "The gNB must make scheduling decisions in under 1ms — there is no time for a neural network inference. The near-RT RIC operates on a 10ms–1s timescale, which is sufficient for a handover decision. GRU inference takes approximately 2ms on our machine, well within this window. Additionally, placing AI in the RIC keeps the gNB firmware unchanged and the AI logic open and modifiable."),
+        ("Why did you use a separate Python Flask service instead of running the model in C?",
+         "FlexRIC's xApp framework requires C code for E2 communication. Reimplementing Keras/TensorFlow in C would be impractical. By separating the C xApp (E2 logic) from the Python service (GRU inference), we get the best of both: correct O-RAN protocol handling and easy use of the Python ML ecosystem. The HTTP overhead on localhost is less than 1ms."),
+        ("How does the xApp know when to call the GRU? Does it call it every 50ms?",
+         "No. The xApp first checks the A3 condition: if no neighbor cell's SINR exceeds the serving cell's SINR by more than 2.0 dB, there is no handover opportunity and the GRU is not called. This gate eliminates the vast majority of KPM reports (when signal is stable) and calls GRU only when a handover decision is actually needed. This reduces unnecessary inference load significantly."),
+        ("What happens if the GRU service crashes mid-simulation?",
+         "The xApp sends an HTTP POST and receives an error (connection refused or timeout). Our implementation falls back to the pure A3 decision: if the A3 condition was already met, the xApp picks the neighbor with the highest SINR as the target, without AI guidance. The simulation continues — it just loses the GRU benefit for the remaining duration."),
+        ("Is this a real O-RAN deployment or just a simulation?",
+         "It is a high-fidelity simulation. NS-3 with the mmWave module accurately models 5G mmWave propagation and mobility. FlexRIC is a real open-source near-RT RIC — the same code could control a real gNB if connected to physical hardware. The xApp C code uses FlexRIC's real E2AP/E2SM API. So while the radio is simulated, the RIC infrastructure and the AI integration are real."),
+        ("Why is 5.0 seconds the cooldown time? Who chose that number?",
+         "It is a design parameter based on physical reasoning. A UE moving at a typical indoor speed of 1–2 m/s will move 5–10 metres in 5 seconds. This is enough distance to leave a cell-edge region and stabilise in the new cell before another handover is allowed. We also verified empirically: with 5.0s cooldown, PP rate drops to ~3.2%. A shorter cooldown (e.g., 2s) allows more PPs; a longer one (e.g., 10s) may block necessary handovers for fast-moving UEs."),
+    ]
+    for q, a in qas:
+        e += qa(q, a)
+    e.append(sp(0.3))
+
+    e.append(hr())
+    e.append(nb("Summary: The GRU model enters the O-RAN system through an xApp registered with the near-RT RIC (FlexRIC). The xApp receives KPM reports via the E2 interface, maintains a 10-sample rolling window, uses the A3 condition as a pre-filter, then calls the GRU Flask service for the final cell selection. The RC control command is sent back through FlexRIC to NS-3, which executes the handover. The C/Python split ensures O-RAN protocol compliance without sacrificing ML flexibility."))
+    return e
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # MAIN BUILD
 # ══════════════════════════════════════════════════════════════════════════════
 def build_pdf():
@@ -2137,6 +2389,7 @@ def build_pdf():
     story += chapter_experimental()
     story += chapter_defense_prep()
     story += quick_reference()
+    story += chapter_ai_in_oran()
 
     doc.build(story, onFirstPage=on_page, onLaterPages=on_page)
     print(f"PDF generated: {OUTPUT_PATH}")
