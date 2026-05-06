@@ -3852,6 +3852,119 @@ def chapter_20_glossary():
     return elems
 
 
+def gui_table_of_contents():
+    e = []
+    e.append(PageBreak())
+
+    t = Table([['']], colWidths=[PAGE_W - 4*cm], rowHeights=[6])
+    t.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,-1), ACCENT_GOLD)]))
+    e.append(t)
+    e.append(sp(0.3))
+    e.append(Paragraph("TABLE OF CONTENTS", ParagraphStyle(
+        'toc_main', fontName='Helvetica-Bold', fontSize=20,
+        textColor=DARK_BLUE, alignment=TA_CENTER, spaceAfter=4)))
+    e.append(Paragraph("3D GUI System — Complete Backend Developer Guide",
+        ParagraphStyle('toc_sub', fontName='Helvetica', fontSize=10,
+        textColor=MED_BLUE, alignment=TA_CENTER, spaceAfter=8)))
+    t2 = Table([['']], colWidths=[PAGE_W - 4*cm], rowHeights=[4])
+    t2.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,-1), ACCENT_GOLD)]))
+    e.append(t2)
+    e.append(sp(0.4))
+
+    def group_label(text):
+        return Paragraph(text, ParagraphStyle(
+            'grp', fontName='Helvetica-Bold', fontSize=9,
+            textColor=colors.white, backColor=MED_BLUE,
+            spaceBefore=10, spaceAfter=2,
+            borderPadding=(3, 6, 3, 6)))
+
+    def toc_row(num, title, note=''):
+        num_para = Paragraph(str(num), ParagraphStyle(
+            'toc_num', fontName='Helvetica-Bold', fontSize=9.5,
+            textColor=DARK_BLUE, alignment=TA_CENTER))
+        title_para = Paragraph(
+            f"<b>{title}</b>" + (f"  <i><font color='#777777' size='8'>— {note}</font></i>" if note else ''),
+            ParagraphStyle('toc_title', fontName='Times-Roman', fontSize=9.5,
+                           leading=14, textColor=colors.black))
+        row_t = Table([[num_para, title_para]],
+                      colWidths=[1.2*cm, PAGE_W - 4*cm - 1.2*cm])
+        row_t.setStyle(TableStyle([
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('TOPPADDING', (0,0), (-1,-1), 3),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 3),
+            ('LEFTPADDING', (0,0), (-1,-1), 4),
+            ('RIGHTPADDING', (0,0), (-1,-1), 4),
+            ('LINEBELOW', (0,0), (-1,-1), 0.3, LIGHT_BLUE),
+        ]))
+        return row_t
+
+    # ── CORE ARCHITECTURE ─────────────────────────────────────────────────────
+    e.append(group_label("  SYSTEM ARCHITECTURE & COMPONENTS"))
+    e.append(sp(0.1))
+    core = [
+        ("1",  "System Overview",                                "9-component table, two GUI layers, air-traffic analogy"),
+        ("2",  "Directory Structure — Every File Explained",     "annotated tree, what breaks if missing"),
+        ("3",  "controller.py — Complete API Reference",        "all routes, launch-all 10-step sequence, save_sim_results"),
+        ("4",  "generate_plots.py — Post-Simulation Analysis",  "8-step flow, PP detection, 4 plots"),
+        ("5",  "sim_data_pusher.py — InfluxDB Bridge",          "CSV files, measurement naming, push loop"),
+        ("6",  "InfluxDB — Time-Series Database",               "all measurements, Docker setup, queries"),
+        ("7",  "SQLite — The Decisions Database",               "schema, all columns, insert & query"),
+        ("8",  "Frontend Architecture — Three.js + Vite",       "main.js, scene.js, ui.js, config.js, proxy rules"),
+        ("9",  "Docker Compose — Infrastructure Services",      "influxdb, gui, grafana services, env vars"),
+    ]
+    for num, title, note in core:
+        e.append(toc_row(num, title, note))
+
+    e.append(sp(0.2))
+    # ── OPERATIONS ────────────────────────────────────────────────────────────
+    e.append(group_label("  OPERATIONS & DATA FLOW"))
+    e.append(sp(0.1))
+    ops = [
+        ("10", "gru.sh and kill_sim.sh — Launch and Kill Scripts", "10-step launch, 5-step kill, startup order"),
+        ("11", "Complete Data Flow — Every Step",                  "6 phases from NS-3 signal to 3D screen"),
+        ("12", "API Quick Reference — All Routes",                 "full table: method, path, body, response"),
+    ]
+    for num, title, note in ops:
+        e.append(toc_row(num, title, note))
+
+    e.append(sp(0.2))
+    # ── DEVELOPER GUIDES ──────────────────────────────────────────────────────
+    e.append(group_label("  DEVELOPER GUIDES & MAINTENANCE"))
+    e.append(sp(0.1))
+    dev = [
+        ("13", "Developer Guide — How to Add New Features",   "new route, new metric, new plot, new scenario"),
+        ("14", "Troubleshooting — 10 Common Issues",          "symptom, diagnosis, fix for each"),
+        ("15", "Environment Setup — Install from Scratch",    "all deps, Docker, FlexRIC, NS-3, ML"),
+    ]
+    for num, title, note in dev:
+        e.append(toc_row(num, title, note))
+
+    e.append(sp(0.2))
+    # ── REFERENCE ─────────────────────────────────────────────────────────────
+    e.append(group_label("  REFERENCE & BACKGROUND"))
+    e.append(sp(0.1))
+    ref = [
+        ("16", "Results Format Reference — Every Output File",  "handover.csv, decision_log, plots, summary"),
+        ("17", "Database Query Examples — API and SQLite",      "curl, Python, sqlite3 commands"),
+        ("18", "GRU Machine Learning Model",                    "architecture, training, rolling window"),
+        ("19", "O-RAN Architecture Context",                    "near-RT RIC, xApps, E2 interface"),
+        ("20", "Glossary — Key Terms and Abbreviations",        "all technical terms defined"),
+    ]
+    for num, title, note in ref:
+        e.append(toc_row(num, title, note))
+
+    e.append(sp(0.4))
+    t3 = Table([['']], colWidths=[PAGE_W - 4*cm], rowHeights=[4])
+    t3.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,-1), ACCENT_GOLD)]))
+    e.append(t3)
+    e.append(sp(0.2))
+    e.append(Paragraph(
+        "Total: 20 chapters covering every file, every API route, every data flow, and every development scenario.",
+        ParagraphStyle('toc_footer', fontName='Times-Italic', fontSize=9,
+                       textColor=MED_BLUE, alignment=TA_CENTER)))
+    return e
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # BUILD FUNCTION
 # ══════════════════════════════════════════════════════════════════════════════
@@ -3866,6 +3979,7 @@ def build_pdf_full():
     )
     story = []
     story += cover_page()
+    story += gui_table_of_contents()
     story += chapter_1_overview()
     story += chapter_2_directory_structure()
     story += chapter_3_controller()

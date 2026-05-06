@@ -2336,6 +2336,146 @@ def chapter_ai_in_oran():
 # ══════════════════════════════════════════════════════════════════════════════
 # MAIN BUILD
 # ══════════════════════════════════════════════════════════════════════════════
+def table_of_contents():
+    e = []
+    e.append(PageBreak())
+
+    # Header bar
+    t = Table([['']], colWidths=[PAGE_W - 4*cm], rowHeights=[6])
+    t.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,-1), ACCENT_GOLD)]))
+    e.append(t)
+    e.append(sp(0.3))
+    e.append(Paragraph("TABLE OF CONTENTS", ParagraphStyle(
+        'toc_main', fontName='Helvetica-Bold', fontSize=20,
+        textColor=DARK_BLUE, alignment=TA_CENTER, spaceAfter=4)))
+    e.append(Paragraph("GRU-Based Handover Optimization in O-RAN — Thesis Defense Guide",
+        ParagraphStyle('toc_sub', fontName='Helvetica', fontSize=10,
+        textColor=MED_BLUE, alignment=TA_CENTER, spaceAfter=8)))
+    t2 = Table([['']], colWidths=[PAGE_W - 4*cm], rowHeights=[4])
+    t2.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,-1), ACCENT_GOLD)]))
+    e.append(t2)
+    e.append(sp(0.4))
+
+    # ── helper to render a TOC section group label ────────────────────────────
+    def group_label(text):
+        return Paragraph(text, ParagraphStyle(
+            'grp', fontName='Helvetica-Bold', fontSize=9,
+            textColor=colors.white, backColor=MED_BLUE,
+            spaceBefore=10, spaceAfter=2, leftIndent=0,
+            borderPadding=(3, 6, 3, 6)))
+
+    # ── helper to render one TOC row ──────────────────────────────────────────
+    def toc_row(num, title, note=''):
+        num_para = Paragraph(str(num), ParagraphStyle(
+            'toc_num', fontName='Helvetica-Bold', fontSize=9.5,
+            textColor=DARK_BLUE, alignment=TA_CENTER))
+        title_para = Paragraph(
+            f"<b>{title}</b>" + (f"  <i><font color='#777777' size='8'>— {note}</font></i>" if note else ''),
+            ParagraphStyle('toc_title', fontName='Times-Roman', fontSize=9.5,
+                           leading=14, textColor=colors.black))
+        row_t = Table([[num_para, title_para]],
+                      colWidths=[1.2*cm, PAGE_W - 4*cm - 1.2*cm])
+        row_t.setStyle(TableStyle([
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('TOPPADDING', (0,0), (-1,-1), 3),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 3),
+            ('LEFTPADDING', (0,0), (-1,-1), 4),
+            ('RIGHTPADDING', (0,0), (-1,-1), 4),
+            ('LINEBELOW', (0,0), (-1,-1), 0.3, LIGHT_BLUE),
+        ]))
+        return row_t
+
+    # ── CORE CHAPTERS ─────────────────────────────────────────────────────────
+    e.append(group_label("  CORE CHAPTERS — System & Theory"))
+    e.append(sp(0.1))
+    core = [
+        (1,  "What is O-RAN? — The Big Picture",              "architecture, interfaces, RIC types"),
+        (2,  "Near-RT RIC and xApps — Deep Dive",             "FlexRIC, xApp lifecycle, E2SM-KPM/RC"),
+        (3,  "NS-3 Network Simulator",                        "mmWave, gru_scenario.cc, cell layout, A3 event"),
+        (4,  "GRU Neural Network — Theory Made Simple",       "gates, rolling window, training"),
+        (5,  "The Handover Problem in 5G mmWave",             "ping-pong causes, A3 vs GRU"),
+        (6,  "xApp Implementation — best2.c Explained",       "state machine, thresholds, decision logic"),
+        (7,  "GRU Python Service — gru_xapp.py Explained",    "Flask, /predict endpoint, inference"),
+        (8,  "Data Pipeline — sim_data_pusher → InfluxDB",    "CSV→InfluxDB, Grafana"),
+        (9,  "3D GUI, Orchestration & Startup Sequence",      "controller, Vite, gru.sh"),
+        (10, "Simulation Results and Analysis",               "sim006/010/011, PP rate, accuracy"),
+        (11, "Complete System Architecture Summary",          "all ports, all files, all parameters"),
+    ]
+    for num, title, note in core:
+        e.append(toc_row(num, title, note))
+
+    e.append(sp(0.2))
+    # ── KEY CHAPTER ───────────────────────────────────────────────────────────
+    e.append(group_label("  KEY CHAPTER — AI Integration in O-RAN (Critical)"))
+    e.append(sp(0.1))
+    e.append(toc_row("★", "Inserting an AI Model (GRU) Inside an O-RAN System",
+                     "3 insertion points, xApp bridge, C/Python split, end-to-end walkthrough"))
+
+    e.append(sp(0.2))
+    # ── DEFENSE Q&A ───────────────────────────────────────────────────────────
+    e.append(group_label("  DEFENSE Q&A — 60+ Questions with Detailed Answers"))
+    e.append(sp(0.1))
+    e.append(toc_row(12, "Defense Q&A — Part 1: O-RAN Basics & Architecture",  "10 Q&A"))
+    e.append(toc_row(12, "Defense Q&A — Part 2: GRU / ML Theory",              "12 Q&A"))
+    e.append(toc_row(12, "Defense Q&A — Part 3: System Implementation",        "12 Q&A"))
+    e.append(toc_row(12, "Defense Q&A — Part 4: Results, Tradeoffs & Future",  "12 Q&A + tricky Q"))
+
+    e.append(sp(0.2))
+    # ── EXTENDED CHAPTERS ─────────────────────────────────────────────────────
+    e.append(group_label("  EXTENDED CHAPTERS — Deep Dives & Extra Detail"))
+    e.append(sp(0.1))
+    extended = [
+        ("N1", "GRU Model — Step-by-Step Mathematics (Simplified)",  "gate equations, numeric example"),
+        ("N2", "The E2 Interface — How NS-3 Talks to FlexRIC",       "E2AP, 11-step message sequence"),
+        ("N3", "KPM Reports — What Data Flows Every 50ms",           "all fields decoded, SINR/RSRP ranges"),
+        ("N4", "The Ping-Pong Effect — Deep Dive",                   "4 root causes, cooldown mechanics"),
+        ("N5", "Step-by-Step sim011 Walkthrough",                    "23 steps from gru.sh to saved results"),
+        ("N6", "What Each Output File Contains",                     "handover.csv, decision_log, plots"),
+        ("N7", "Research Novelty & Contribution",                    "literature comparison table"),
+        ("N8", "Common Mistakes and How to Avoid Them",              "7 real development bugs"),
+        ("N9", "Extended Glossary — 80+ Terms",                      "alphabetical, 2-3 sentences each"),
+        ("N10","Self-Test — 30 Questions Before Defense Day",        "architecture, ML, protocols"),
+        ("N11","GRU Model Training — How the Model Was Built",       "data, hyperparameters, accuracy"),
+        ("N12","Experimental Design — 3 Simulations Explained",      "RngRun, variables, limitations"),
+        ("N13","Defense Preparation — Presentation Tips",            "opening template, tough Q&A"),
+    ]
+    for num, title, note in extended:
+        e.append(toc_row(num, title, note))
+
+    e.append(sp(0.2))
+    # ── REFERENCE CHAPTERS ────────────────────────────────────────────────────
+    e.append(group_label("  REFERENCE SECTIONS"))
+    e.append(sp(0.1))
+    ref = [
+        (13,  "Glossary — Technical Terms Explained",             "all key terms"),
+        (14,  "System Troubleshooting — Common Problems",         "diagnosis + fix"),
+        (15,  "Mathematical Background — Key Equations",          "GRU math, A3 formula"),
+        (16,  "Technical Deep Dives — Extended Explanations",     "thread safety, Grafana Flux, calibration"),
+        (17,  "Pre-Defense Checklist & Exam Tips",                "one-week plan"),
+        (18,  "Additional Defense Q&A — Supplementary",          "3GPP, software eng, team Q"),
+        (19,  "Worked Examples — Walking Through Scenarios",      "4 concrete walkthroughs"),
+        (20,  "Understanding Simulation Output Files",            "CSV, JSON, plots explained"),
+        (21,  "Design Decisions — Why Each Choice Was Made",      "parameter sensitivity table"),
+        (22,  "Exam-Day Self-Test & Final Review",                "15 flash facts, 25 questions"),
+        (23,  "Related Work — How This Thesis Fits Literature",   "novelty statement, limitations"),
+        ("A", "Appendix — Abbreviations & Parameter Index",      "50+ abbreviations, full tables"),
+        ("QR","Quick Reference — All Numbers on One Page",        "formulas, results, key facts"),
+    ]
+    for num, title, note in ref:
+        e.append(toc_row(num, title, note))
+
+    e.append(sp(0.4))
+    t3 = Table([['']], colWidths=[PAGE_W - 4*cm], rowHeights=[4])
+    t3.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,-1), ACCENT_GOLD)]))
+    e.append(t3)
+    e.append(sp(0.2))
+    e.append(Paragraph(
+        "Total: 120+ pages covering every component, every parameter, and every expected defense question.",
+        ParagraphStyle('toc_footer', fontName='Times-Italic', fontSize=9,
+                       textColor=MED_BLUE, alignment=TA_CENTER)))
+    return e
+
+
 def build_pdf():
     doc = SimpleDocTemplate(
         OUTPUT_PATH,
@@ -2348,6 +2488,7 @@ def build_pdf():
 
     story = []
     story += cover_page()
+    story += table_of_contents()
     story += chapter1()
     story += chapter2()
     story += chapter3()
