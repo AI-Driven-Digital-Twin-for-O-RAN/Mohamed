@@ -1,0 +1,11 @@
+{
+  "sim": "sim010",
+  "tag": "gru_scenario",
+  "timestamp": "20260506_024225",
+  "total_handovers": 137,
+  "pingpong_events": 5,
+  "pingpong_rate_pct": 3.65,
+  "correct_decisions": 132,
+  "total_decisions": 137,
+  "accuracy_pct": 96.35
+}

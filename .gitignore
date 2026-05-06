@@ -15,6 +15,7 @@ yousef_fathy/swig/
 3D_GUI_Sim_Results/*/gru.log
 3D_GUI_Sim_Results/*/pusher.log
 3D_GUI_Sim_Results/*/flexric.log
+3D_GUI_Sim_Results/*/lstm_features.csv
 
 # ── Simulation output files (written fresh every run, not source) ──
 yousef_fathy/ns-O-RAN-flexric/mmwave-LENA-oran/energyfilecell*.csv
