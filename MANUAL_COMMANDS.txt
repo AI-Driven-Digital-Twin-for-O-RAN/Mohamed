@@ -348,13 +348,25 @@ EOF
 
   Each folder contains:
     handover.csv          — raw handover events
+    lstm_features.csv     — SINR feature vectors (GRU input)
     decision_log.csv      — UUID-tagged decisions with is_correct flag
     decision_summary.json — accuracy %, ping-pong rate, counts
     summary.txt           — human-readable summary
     plots/
       decision_quality.png       — correct vs ping-pong scatter over time
       handovers_over_time.png    — cumulative handovers curve
+      ho_per_ue.png              — handovers per UE bar chart
+      ho_activity.png            — HO activity in 5s time bins
     flexric.log / simulation.log / xapp.log / gru.log / pusher.log
+
+  IF plots/ folder is missing (controller was killed mid-save), regenerate:
+    python3 /home/omar_farouk/open-ran-clean/5g-gui-v2/generate_plots.py
+    # Auto-detects the latest sim dir. Or pass a specific path:
+    python3 /home/omar_farouk/open-ran-clean/5g-gui-v2/generate_plots.py \
+        /home/omar_farouk/open-ran-clean/3D_GUI_Sim_Results/sim010_20260506_024225_gru_scenario
+
+  NOTE: kill_sim.sh now auto-runs generate_plots.py on the latest sim dir
+        if plots/ is missing — so just run kill_sim.sh after any sim.
 
   All decision history is also stored in SQLite:
     /home/omar_farouk/open-ran-clean/sim_decisions.db
@@ -493,5 +505,17 @@ EOF
 
   CHECK WHAT IS RUNNING:
     ps aux | grep -E 'nearRT-RIC|ns3.42|xapp|pusher|gru_xapp|xApp_trigger' | grep -v grep
+
+  FIX 6 — PLOTS NOT GENERATED AFTER SIMULATION (fixed 2026-05-06)
+  ----------------------------------------------------------------
+  PROBLEM: If kill_sim.sh is run while controller is mid-save, plots/ folder
+           and decision_log.csv / decision_summary.json are missing from the
+           sim result directory.
+  FIX:     kill_sim.sh now auto-runs generate_plots.py on the latest sim dir
+           if plots/ is missing. You can also run it manually:
+             python3 /home/omar_farouk/open-ran-clean/5g-gui-v2/generate_plots.py
+           Or for a specific sim dir:
+             python3 /home/omar_farouk/open-ran-clean/5g-gui-v2/generate_plots.py \
+               /home/omar_farouk/open-ran-clean/3D_GUI_Sim_Results/sim010_...
 
 ================================================================================
