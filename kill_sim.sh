@@ -16,8 +16,10 @@ echo ""
 echo "[1/4] Killing simulation processes..."
 pkill -9 -f 'nearRT-RIC'            2>/dev/null && echo "    ✓ nearRT-RIC"         || echo "    - nearRT-RIC (not running)"
 pkill -9 -f 'ns3'                   2>/dev/null && echo "    ✓ ns3"                || echo "    - ns3 (not running)"
-pkill -9 -f 'xapp_handover_gru'     2>/dev/null && echo "    ✓ xapp_handover_gru"  || echo "    - xapp_handover_gru (not running)"
-pkill -9 -f 'xapp_lb_awf'           2>/dev/null && echo "    ✓ xapp_lb_awf"        || echo "    - xapp_lb_awf (not running)"
+pkill -9 -f 'xapp_handover_gru'     2>/dev/null && echo "    ✓ xapp_handover_gru"   || echo "    - xapp_handover_gru (not running)"
+pkill -9 -f 'xapp_handover_rl'      2>/dev/null && echo "    ✓ xapp_handover_rl"    || echo "    - xapp_handover_rl (not running)"
+pkill -9 -f 'rl_xapp\.py'           2>/dev/null && echo "    ✓ rl_xapp.py"          || echo "    - rl_xapp.py (not running)"
+pkill -9 -f 'xapp_lb_awf'           2>/dev/null && echo "    ✓ xapp_lb_awf"         || echo "    - xapp_lb_awf (not running)"
 pkill -9 -f 'xapp_rc_handover'      2>/dev/null && echo "    ✓ xapp_rc_handover"   || echo "    - xapp_rc_handover (not running)"
 pkill -9 -f 'gru_xapp\.py'          2>/dev/null && echo "    ✓ gru_xapp.py"        || echo "    - gru_xapp.py (not running)"
 pkill -9 -f 'sim_data_pusher'       2>/dev/null && echo "    ✓ sim_data_pusher"    || echo "    - sim_data_pusher (not running)"
@@ -55,6 +57,7 @@ fuser -k 8000/tcp 2>/dev/null && echo "    ✓ freed port 8000 (GUI backend)" ||
 fuser -k 8086/tcp 2>/dev/null && echo "    ✓ freed port 8086 (InfluxDB)"    || true
 fuser -k 3000/tcp 2>/dev/null && echo "    ✓ freed port 3000 (Grafana)"     || true
 fuser -k 5000/tcp 2>/dev/null && echo "    ✓ freed port 5000 (gru_xapp)"    || true
+fuser -k 5001/tcp 2>/dev/null && echo "    ✓ freed port 5001 (rl_xapp)"     || true
 
 # Clear FlexRIC log so next run starts clean
 > /tmp/flexric.log 2>/dev/null && echo "    ✓ cleared /tmp/flexric.log" || true

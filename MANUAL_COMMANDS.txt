@@ -601,3 +601,78 @@ EOF
       -C /home/omar_farouk open-ran-clean
 
 ================================================================================
+
+================================================================================
+  RL (DDQN) xApp — Omar Salama Integration
+================================================================================
+
+  SOURCE REPO:
+    /home/omar_farouk/open-ran-clean/omar_salama/
+    Algorithm: Double DQN (DDQN) — PyTorch
+    Original repo: git@github.com:AI-Driven-Digital-Twin-for-O-RAN/omar-salama.git
+
+  KEY FILES:
+    omar_salama/src/agent.py            — DDQNAgent + QNetwork (PyTorch)
+    omar_salama/src/env.py              — VHDAEnv (binary action: 0=stay, 1=HO)
+    omar_salama/train_rl_ns3.py         — Training script (run once to produce model)
+    omar_salama/models/rl_ns3_handover.pth  — Trained model weights (57KB)
+    omar_salama/rl_xapp.py              — Flask inference service (PORT 5001)
+
+    flexric/examples/xApp/c/handover_rl/best2_rl.c          — RL C xApp (copy of best2.c)
+    flexric/examples/xApp/c/handover_rl/rl_predictor_client.h/.c — HTTP client for port 5001
+    flexric/build/examples/xApp/c/handover_rl/xapp_handover_rl  — Compiled binary (11MB)
+
+  HOW IT WORKS:
+    1. Same A3 gate as GRU: neighbor_SINR > serving_SINR + 2.0 dB
+    2. When A3 fires → HTTP POST to localhost:5001/predict
+    3. DDQN returns action: 0 (stay) or 1 (handover)
+    4. If action=1 → pick best neighbor by SINR (A3 winner)
+    5. Same 5.0s anti-PP cooldown as GRU
+    Input: 8 features × 5-step window = 40-dim state
+    Output: binary action (0=stay, 1=handover to best neighbor)
+
+  MODEL ARCHITECTURE:
+    QNetwork: Linear(40→128) → ReLU → Linear(128→64) → ReLU → Linear(64→2)
+    Training: 300 episodes on synthetic normalized dataset
+    PP improvement: avg 213 → 127 per episode during training
+
+  TO RUN RL SIMULATION (separate from GRU — DO NOT run both at once):
+    bash /home/omar_farouk/open-ran-clean/rl.sh
+
+  TO RETRAIN THE MODEL:
+    cd /home/omar_farouk/open-ran-clean
+    python3 omar_salama/train_rl_ns3.py
+    # Saves new weights to omar_salama/models/rl_ns3_handover.pth
+
+  TO TEST RL SERVICE MANUALLY:
+    # Start service
+    python3 /home/omar_farouk/open-ran-clean/omar_salama/rl_xapp.py &
+
+    # Health check
+    curl http://localhost:5001/health
+
+    # Test prediction
+    curl -s -X POST http://localhost:5001/predict \
+      -H "Content-Type: application/json" \
+      -d '{"ue_id":5,"serving_sinr":15.3,"serving_rsrp":-85.0,
+           "neighbor_sinr":17.8,"neighbor_rsrp":-80.0,
+           "cqi":10,"speed":3.0,"dl_bitrate":20.0}' | python3 -m json.tool
+
+    # Stats
+    curl http://localhost:5001/stats
+
+  PORTS:
+    GRU xApp service:  5000  (UNCHANGED — DO NOT CONFLICT)
+    RL  xApp service:  5001  (NEW)
+
+  SAFETY — GRU IS COMPLETELY ISOLATED:
+    - best2.c            → NOT modified (verified by MD5)
+    - gru_xapp.py        → NOT modified (verified by MD5)
+    - gru.sh             → NOT modified (verified by MD5)
+    - rl.sh guards: exits if GRU service is already running on port 5000
+
+  TO COMPILE RL xApp AFTER CODE CHANGES:
+    cd /home/omar_farouk/open-ran-clean/yousef_fathy/flexric/build
+    make xapp_handover_rl -j$(nproc)
+
+================================================================================

@@ -7,5 +7,6 @@ add_subdirectory(tc)
 add_subdirectory(kpm_rc)
 add_subdirectory(orange)
 add_subdirectory(handover_gru)
-add_subdirectory(lb_awf)
+add_subdirectory(handover_rl)
+#add_subdirectory(lb_awf)
 
