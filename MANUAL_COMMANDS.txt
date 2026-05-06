@@ -556,3 +556,48 @@ EOF
       boundary artifact as a known tick-resolution simulation limitation.
 
 ================================================================================
+
+================================================================================
+  PROJECT BACKUP
+================================================================================
+
+  BACKUP FILE:
+    /home/omar_farouk/open-ran-clean-backup-20260506_183140.tar.gz
+    Size: 654 MB
+    Created: 2026-05-06 18:31
+
+  WHAT IS INCLUDED:
+    - All source code (NS-3 scenario, xApp C code, Python services)
+    - All scripts (gru.sh, kill_sim.sh, generate_plots.py)
+    - All PDFs (GRU_ORAN_Thesis_Guide.pdf, 3D_GUI_Backend_Guide.pdf,
+                 GRU_Graduation_Book_Chapter.pdf)
+    - All PDF generator scripts (generate_thesis_pdf.py, generate_gui_pdf.py,
+                                  generate_book_chapter.py)
+    - All simulation results (3D_GUI_Sim_Results/)
+    - GUI source files, FlexRIC configs, gru_xapp.py, controller.py
+
+  WHAT IS EXCLUDED (recompilable — saves ~11GB):
+    - yousef_fathy/flexric/build/             (rebuild: cd flexric && cmake . && make)
+    - yousef_fathy/ns-O-RAN-flexric/.../build/ (rebuild: see MANUAL_COMMANDS above)
+    - 5g-gui-v2/node_modules/                 (rebuild: cd 5g-gui-v2 && npm install)
+
+  TO RESTORE (if anything goes wrong):
+    cd /home/omar_farouk
+    tar -xzf open-ran-clean-backup-20260506_183140.tar.gz
+
+  SECOND BACKUP — GitHub:
+    All code + PDFs also pushed to:
+    https://github.com/omar297farouk-jpg/graduation-project
+    (branch: main — always up to date)
+
+  TO CREATE A NEW BACKUP (before major changes):
+    tar -czf "/home/omar_farouk/open-ran-clean-backup-$(date +%Y%m%d_%H%M%S).tar.gz" \
+      --exclude="open-ran-clean/yousef_fathy/flexric/build" \
+      --exclude="open-ran-clean/yousef_fathy/ns-O-RAN-flexric/mmwave-LENA-oran/build" \
+      --exclude="open-ran-clean/yousef_fathy/ns-O-RAN-flexric/mmwave-LENA-oran/cmake-cache" \
+      --exclude="open-ran-clean/yousef_fathy/swig" \
+      --exclude="open-ran-clean/5g-gui-v2/node_modules" \
+      --exclude="open-ran-clean/5g-gui-v2/dist" \
+      -C /home/omar_farouk open-ran-clean
+
+================================================================================
