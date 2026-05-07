@@ -365,6 +365,23 @@ EOF
     python3 /home/omar_farouk/open-ran-clean/5g-gui-v2/generate_plots.py \
         /home/omar_farouk/open-ran-clean/3D_GUI_Sim_Results/sim010_20260506_024225_gru_scenario
 
+  EACH FOLDER ALSO CONTAINS (auto-generated after every simulation):
+    GRU_Analysis_Report.pdf — 7-page detailed PDF analysis (matplotlib, dark navy theme)
+      Page 1: Cover dashboard (sim time, HOs, PP, PP rate, PP-free streak, training rows)
+      Page 2: HO timeline scatter + PP events horizontal bar chart
+      Page 3: GRU learning curve (rolling PP rate), HO rate per 10s bucket, cell HOs breakdown
+      Page 4: SINR histogram (early vs late), RSRP over time, SINR per cell, UE speed dist.
+      Page 5: UE-cell association heatmap + HO transition matrix
+      Page 6: Conclusions text
+      Page 7: Chart guide (explains all 12 charts in plain language)
+
+  PDF AUTO-GENERATION — triggered automatically from two paths:
+    1. controller.py: generates PDF non-blocking after every natural sim completion
+    2. kill_sim.sh step 5: generates PDF for latest sim after manual kill
+    To regenerate manually for any sim dir:
+      python3 /home/omar_farouk/open-ran-clean/5g-gui-v2/generate_gru_pdf.py \
+          /home/omar_farouk/open-ran-clean/3D_GUI_Sim_Results/sim015_...
+
   NOTE: kill_sim.sh now auto-runs generate_plots.py on the latest sim dir
         if plots/ is missing — so just run kill_sim.sh after any sim.
 
@@ -518,16 +535,63 @@ EOF
              python3 /home/omar_farouk/open-ran-clean/5g-gui-v2/generate_plots.py \
                /home/omar_farouk/open-ran-clean/3D_GUI_Sim_Results/sim010_...
 
+  FIX 7 — SIM_DATA_PUSHER IndexError ON TRUNCATED CSV ROWS (fixed 2026-05-07)
+  -----------------------------------------------------------------------------
+  PROBLEM: sim_data_pusher.py crashed with IndexError when a CSV record had
+           fewer columns than the header (e.g., line written mid-flush by ns-3).
+           Two separate crash sites:
+             push_count_to_influx: fields[i_id] with too-short record
+             push_data_to_influx:  fields[id_index] with too-short record
+  FIX:     Added length guards before accessing fields:
+             push_count_to_influx: if len(fields) <= max(i_id, i_timestamp): continue
+             push_data_to_influx:  if len(fields) < len(headers): continue
+  NOTE:    pusher crash does NOT affect simulation results — it only feeds
+           InfluxDB for the 2D Grafana dashboard. Simulation continues normally.
+
+  FIX 8 — DDQN v2 DOMAIN GAP (fixed 2026-05-07)
+  -----------------------------------------------
+  PROBLEM: DDQN v1 was trained on synthetic WiFi/5G data with normalized
+           ranges that don't match real NS-3 mmWave measurements.
+           Result: v1 fired ~1-2 handovers per 120s (extreme under-firing).
+  FIX:     Retrained on 95,422 rows from sim011 (real NS-3 mmWave, 120s).
+           New model: omar_salama/models/rl_ns3_handover_v2.pth
+           rl_xapp.py auto-selects v2 if file exists.
+           Result: v2 fires ~3 HOs/s matching GRU pace, 4.82% PP rate.
+
 ================================================================================
 
 ================================================================================
-  PING-PONG RATE ANALYSIS — FINDINGS FROM sim006 / sim010 / sim011
+  PING-PONG RATE ANALYSIS — FINDINGS FROM sim006 / sim010 / sim011 / sim014 / sim015
 ================================================================================
 
-  OBSERVED RESULTS:
-    sim006  60s   334 HOs   ~6 PPs   1.72% PP rate
-    sim010  60s   137 HOs    5 PPs   3.65% PP rate
-    sim011 120s   309 HOs   10 PPs   3.24% PP rate
+  OBSERVED RESULTS (GRU xApp):
+    sim006  60s    334 HOs   ~6 PPs   1.72% PP rate
+    sim010  60s    137 HOs    5 PPs   3.65% PP rate
+    sim011 120s    309 HOs   10 PPs   3.24% PP rate  ← used for DDQN v2 training
+    sim014  81.6s  233 HOs    7 PPs   3.00% PP rate  ← OOM-killed, GRU xApp
+
+  OBSERVED RESULTS (RL DDQN v2 xApp):
+    sim015 110.4s  332 HOs   16 PPs   4.82% PP rate  ← OOM-killed, RL v2 xApp
+    sim012  ~60s    ??  HOs    ? PPs    ?%   PP rate  ← RL v1 (domain gap, ~1-2 HOs)
+    sim013  ~60s    ??  HOs    ? PPs    ?%   PP rate  ← RL v1 (domain gap, ~1-2 HOs)
+
+  GRU vs RL v2 COMPARISON (both OOM-killed — normalize per sim-second):
+    Metric               GRU (sim014, 81.6s)    RL v2 (sim015, 110.4s)
+    ────────────────────────────────────────────────────────────────────
+    Total HOs            233                    332
+    PP events            7                      16
+    PP rate              3.00%                  4.82%  (+60% higher)
+    HOs per sim-sec      2.85/s                 3.01/s  (~similar pace)
+    PP per sim-sec       0.086/s                0.145/s (+69% higher)
+    PP temporal pattern  Front-loaded (t<27s)   Sporadic clusters every ~25-30s
+
+  KEY INSIGHT — WHY RL v2 HAS MORE PP THAN GRU:
+    GRU uses a 5-step temporal window → smooths decisions over time →
+    PP rate drops to near-zero after window "warms up" (first ~27s).
+    RL v2 (DDQN) evaluates each state independently per A3 trigger →
+    no temporal smoothing → PP clusters recur throughout the simulation
+    every ~25-30s when UEs oscillate between two cells.
+    This is expected and is a fundamental architectural difference, not a bug.
 
   KEY FINDING — PP count scales with simulation time, NOT random seed:
     sim010:  5 PPs in 60s
@@ -612,11 +676,14 @@ EOF
     Original repo: git@github.com:AI-Driven-Digital-Twin-for-O-RAN/omar-salama.git
 
   KEY FILES:
-    omar_salama/src/agent.py            — DDQNAgent + QNetwork (PyTorch)
-    omar_salama/src/env.py              — VHDAEnv (binary action: 0=stay, 1=HO)
-    omar_salama/train_rl_ns3.py         — Training script (run once to produce model)
-    omar_salama/models/rl_ns3_handover.pth  — Trained model weights (57KB)
-    omar_salama/rl_xapp.py              — Flask inference service (PORT 5001)
+    omar_salama/src/agent.py                    — DDQNAgent + QNetwork (PyTorch)
+    omar_salama/src/env.py                      — VHDAEnv (binary action: 0=stay, 1=HO)
+    omar_salama/train_rl_ns3.py                 — v1 training script (synthetic data)
+    omar_salama/train_rl_ns3_v2.py              — v2 training script (real NS-3 mmWave data)
+    omar_salama/models/rl_ns3_handover.pth      — v1 model weights (synthetic, 57 KB)
+    omar_salama/models/rl_ns3_handover_v2.pth   — v2 model weights (NS-3 retrained, 57 KB)
+    omar_salama/Datasets/ns3_mmwave_dataset.csv — Real NS-3 training data (95,422 rows, sim011)
+    omar_salama/rl_xapp.py                      — Flask inference service (PORT 5001)
 
     flexric/examples/xApp/c/handover_rl/best2_rl.c          — RL C xApp (copy of best2.c)
     flexric/examples/xApp/c/handover_rl/rl_predictor_client.h/.c — HTTP client for port 5001
@@ -637,12 +704,27 @@ EOF
     PP improvement: avg 213 → 127 per episode during training
 
   TO RUN RL SIMULATION (separate from GRU — DO NOT run both at once):
-    bash /home/omar_farouk/open-ran-clean/rl.sh
+    bash /home/omar_farouk/open-ran-clean/rl.sh           # uses v2 model automatically
+    bash /home/omar_farouk/open-ran-clean/rl.sh 120       # simTime=120
 
-  TO RETRAIN THE MODEL:
+  TO RETRAIN THE MODEL (v1 — synthetic data, deprecated):
     cd /home/omar_farouk/open-ran-clean
     python3 omar_salama/train_rl_ns3.py
-    # Saves new weights to omar_salama/models/rl_ns3_handover.pth
+    # Saves to omar_salama/models/rl_ns3_handover.pth
+
+  TO RETRAIN THE MODEL (v2 — real NS-3 mmWave data, RECOMMENDED):
+    # Step 1: copy latest sim's lstm_features.csv as training data
+    cp /home/omar_farouk/lstm_features.csv \
+       /home/omar_farouk/open-ran-clean/omar_salama/Datasets/ns3_mmwave_dataset.csv
+    # Or copy from a saved sim result:
+    cp /home/omar_farouk/open-ran-clean/3D_GUI_Sim_Results/sim011_.../lstm_features.csv \
+       /home/omar_farouk/open-ran-clean/omar_salama/Datasets/ns3_mmwave_dataset.csv
+
+    # Step 2: run training (takes ~5-10 min, 500 episodes, ~95k rows)
+    cd /home/omar_farouk/open-ran-clean
+    python3 -u omar_salama/train_rl_ns3_v2.py
+    # Saves to omar_salama/models/rl_ns3_handover_v2.pth
+    # rl_xapp.py auto-loads v2 if it exists (v1 is fallback)
 
   TO TEST RL SERVICE MANUALLY:
     # Start service
@@ -660,6 +742,18 @@ EOF
 
     # Stats
     curl http://localhost:5001/stats
+
+  MODEL AUTO-SELECTION (rl_xapp.py):
+    rl_xapp.py checks for v2 at startup and uses it if present:
+      if (models/rl_ns3_handover_v2.pth exists) → load v2  [REAL NS-3 DATA]
+      else                                        → load v1  [SYNTHETIC, fallback]
+
+  DOMAIN GAP FIX (why v2 was necessary):
+    v1 trained on synthetic WiFi/5G dataset → NS-3 mmWave range mismatch
+    v1 result in NS-3: ~1-2 HOs per 120s (under-firing, conservative)
+    v2 trained on 95,422 rows from sim011 (real NS-3 mmWave 120s run)
+    v2 result in NS-3: 332 HOs in 110s — matches GRU firing rate
+    Training: 500 episodes, max_steps=2000, lr=5e-4, epsilon_decay=0.993
 
   PORTS:
     GRU xApp service:  5000  (UNCHANGED — DO NOT CONFLICT)

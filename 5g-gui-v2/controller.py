@@ -247,6 +247,17 @@ def save_sim_results(tag: str = ""):
     if decisions:
         _generate_plots(decisions, dest, sim_label)
 
+    # Generate detailed PDF analysis report (non-blocking, best-effort)
+    try:
+        pdf_script = os.path.join(os.path.dirname(__file__), "generate_gru_pdf.py")
+        if os.path.exists(pdf_script):
+            subprocess.Popen(
+                ["python3", pdf_script, dest],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+            )
+    except Exception:
+        pass
+
     # decision_summary.json
     summary_data = {
         "sim":              sim_label,

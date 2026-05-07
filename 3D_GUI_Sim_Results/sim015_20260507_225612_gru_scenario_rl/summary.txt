@@ -1,0 +1,6 @@
+Simulation Results — sim015 — 20260507_225612
+============================================
+Total handovers   : 332
+Ping-pong events  : 16
+Ping-pong rate    : 4.82%
+GRU accuracy      : 95.18% (316/332 correct decisions)

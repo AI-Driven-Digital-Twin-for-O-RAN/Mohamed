@@ -75,16 +75,25 @@ echo "time_sec,ue_id,from_cell,to_cell,event,executed_ok" > /home/omar_farouk/ha
 > /home/omar_farouk/kpm_handover_features.csv 2>/dev/null \
     && echo "    ✓ cleared kpm_handover_features.csv" || true
 
-# ── 5. Generate plots for latest sim if missing ──────────────────────────────
+# ── 5. Generate plots + PDF analysis for latest sim ─────────────────────────
 echo ""
-echo "[5/5] Checking for missing plots in latest sim result..."
-LATEST_SIM=$(ls -td /home/omar_farouk/open-ran-clean/3D_GUI_Sim_Results/sim*_gru_scenario 2>/dev/null | head -1)
-if [ -n "$LATEST_SIM" ] && [ ! -d "$LATEST_SIM/plots" ]; then
-    echo "    Plots missing — generating now..."
-    python3 /home/omar_farouk/open-ran-clean/5g-gui-v2/generate_plots.py "$LATEST_SIM" \
-        && echo "    ✓ Plots generated" || echo "    ⚠ Plot generation failed (check manually)"
-elif [ -n "$LATEST_SIM" ]; then
-    echo "    ✓ Plots already exist in $(basename $LATEST_SIM)"
+echo "[5/5] Generating plots and PDF analysis for latest sim result..."
+LATEST_SIM=$(ls -td /home/omar_farouk/open-ran-clean/3D_GUI_Sim_Results/sim* 2>/dev/null | head -1)
+if [ -n "$LATEST_SIM" ]; then
+    SIM_NAME=$(basename "$LATEST_SIM")
+    # Standard plots (InfluxDB / 2D charts)
+    if [ ! -d "$LATEST_SIM/plots" ]; then
+        python3 /home/omar_farouk/open-ran-clean/5g-gui-v2/generate_plots.py "$LATEST_SIM" \
+            > /dev/null 2>&1 && echo "    ✓ Standard plots generated" \
+            || echo "    ⚠ Standard plot generation failed"
+    else
+        echo "    ✓ Standard plots already exist"
+    fi
+    # Detailed PDF analysis (always regenerate to capture latest data)
+    python3 /home/omar_farouk/open-ran-clean/5g-gui-v2/generate_gru_pdf.py "$LATEST_SIM" \
+        > /dev/null 2>&1 \
+        && echo "    ✓ PDF analysis report generated → ${SIM_NAME}/GRU_Analysis_Report.pdf" \
+        || echo "    ⚠ PDF generation failed (check manually)"
 else
     echo "    - No sim result directories found"
 fi

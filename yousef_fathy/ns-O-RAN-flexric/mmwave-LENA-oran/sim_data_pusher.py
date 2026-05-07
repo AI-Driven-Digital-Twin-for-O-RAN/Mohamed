@@ -76,6 +76,8 @@ def push_count_to_influx(
     i_id = headers.index('id') 
     for record in reversed(records):
         fields = record.split(',')
+        if len(fields) <= max(i_id, i_timestamp):
+            continue
         if fields[i_id] == 0:
             continue
         if fields[i_timestamp] != time:
@@ -204,6 +206,8 @@ def push_data_to_influx(
     filename = os.path.splitext(os.path.basename(file_path))[0]
     for record in records:
         fields = record.split(',')
+        if len(fields) < len(headers):
+            continue
         if file_path in core_files:
             if id_column is None:
                 print(f"Error: Neither 'imsi', 'id', nor 'ueImsiComplete' found in the headers of {file_path}")
