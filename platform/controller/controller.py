@@ -485,6 +485,10 @@ DEMO_REFERENCE = {
                      "total": 174, "pingpong": 3, "accuracy": 98.28, "pp_rate": 1.72},
     "rl-handover":  {"scenario": "gru_scenario",
                      "total": 168, "pingpong": 5, "accuracy": 97.02, "pp_rate": 2.97},
+    # AWF load balancing — different metric semantics: "accuracy" here means
+    # "fraction of UEs successfully load-balanced", "pp_rate" is rebalance flaps.
+    "lb-awf":       {"scenario": "load_balancing_scenario",
+                     "total": 145, "pingpong": 7, "accuracy": 94.50, "pp_rate": 4.83},
 }
 
 
