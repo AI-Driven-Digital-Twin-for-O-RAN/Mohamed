@@ -17,7 +17,7 @@ packages:
   - jq
   - make
   - tini
-  - sctp
+  - lksctp-tools          # SCTP user-space tools (the package is `lksctp-tools`, not `sctp`)
   - build-essential
   - cmake
   - ninja-build
@@ -73,8 +73,16 @@ runcmd:
   - chmod 600 /home/ubuntu/.kube/config
 
   # ── Clone the repo ───────────────────────────────────────────────
-  - git clone --branch main https://github.com/AI-Driven-Digital-Twin-for-O-RAN/Mohamed.git /opt/oran
-  - chown -R ubuntu:ubuntu /opt/oran
+  # NOTE: this repo is private. cloud-init can't auth to GitHub. Three options:
+  #   1. Make the repo public (briefly) before `az vm create`, flip back after.
+  #   2. Replace the URL below with `https://<PAT>@github.com/...` (token = fine-
+  #      grained PAT with Contents:Read-only on this repo).
+  #   3. Provision an SSH deploy key. Mount it in `write_files:` above, then
+  #      use the `git@github.com:.../Mohamed.git` SSH URL here.
+  # The clone failure is non-fatal — the rest of the bootstrap completes and
+  # you can finish manually by following infra/azure/MANUAL_RECOVERY.md.
+  - git clone --branch main https://github.com/AI-Driven-Digital-Twin-for-O-RAN/Mohamed.git /opt/oran || echo "[oran] git clone failed — see /opt/oran-recovery.md for manual finish"
+  - chown -R ubuntu:ubuntu /opt/oran 2>/dev/null || true
 
   # ── Marker file so `cloud-init status --wait` works ──────────────
   - touch /var/log/oran-bootstrap-done
