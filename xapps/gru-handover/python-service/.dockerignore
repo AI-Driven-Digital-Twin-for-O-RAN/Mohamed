@@ -1,0 +1,12 @@
+__pycache__
+*.pyc
+*.log
+.env
+.cache
+*.c
+*.h
+*.md
+*.sh
+analyze_results.py
+lstm_predictor_*
+Makefile.lstm

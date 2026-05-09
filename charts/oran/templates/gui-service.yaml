@@ -1,0 +1,19 @@
+{{- if .Values.gui.enabled -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "oran.fullname" . }}-gui
+  labels:
+    {{- include "oran.labels" . | nindent 4 }}
+    app.kubernetes.io/component: gui
+spec:
+  type: {{ .Values.gui.service.type }}
+  ports:
+    - port: {{ .Values.gui.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "oran.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: gui
+{{- end }}

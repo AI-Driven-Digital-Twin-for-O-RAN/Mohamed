@@ -1,0 +1,65 @@
+{{/*
+  xApp registry ConfigMap.
+
+  Renders .Values.xapps as JSON so the controller can enumerate available xApps
+  at runtime and build Job manifests for them.
+
+  cxapp.image rule:
+    - If a per-xApp image repository is set, use that image.
+    - Otherwise fall back to the platform-wide FlexRIC image, which already
+      contains every C xApp binary at /usr/local/flexric/xApp/c/<id>/...
+    cxapp.binary then tells the controller which binary to exec.
+
+  Mounted at /etc/oran/xapps.json inside the controller container.
+*/}}
+{{- $flexricImage := printf "%s/%s:%s"
+      .Values.global.registry
+      .Values.flexric.image.repository
+      (default .Values.global.defaultTag .Values.flexric.image.tag) -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "oran.fullname" . }}-xapp-registry
+  labels:
+    {{- include "oran.labels" . | nindent 4 }}
+    app.kubernetes.io/component: registry
+data:
+  xapps.json: |-
+    {{- $registry := dict -}}
+    {{- range $id, $x := .Values.xapps -}}
+      {{- if $x.enabled -}}
+        {{- $cxImage := $flexricImage -}}
+        {{- if and $x.cxapp.image.repository (ne $x.cxapp.image.repository "") -}}
+          {{- $cxImage = printf "%s/%s:%s"
+                $.Values.global.registry
+                $x.cxapp.image.repository
+                (default $.Values.global.defaultTag $x.cxapp.image.tag) -}}
+        {{- end -}}
+        {{- $entry := dict
+              "id" $id
+              "description" (default "" $x.description)
+              "pythonService" (dict
+                "enabled" $x.pythonService.enabled
+                "url" (ternary
+                  (printf "http://%s-%s.%s.svc.cluster.local:%d"
+                    (include "oran.fullname" $)
+                    $id
+                    $.Release.Namespace
+                    (int (default 0 $x.pythonService.port)))
+                  ""
+                  $x.pythonService.enabled))
+              "cxapp" (dict
+                "image"  $cxImage
+                "binary" (default "" $x.cxapp.binary))
+              "config" $x.config -}}
+        {{- $_ := set $registry $id $entry -}}
+      {{- end -}}
+    {{- end }}
+    {{ $registry | toJson }}
+  flexric_service: {{ include "oran.fullname" . }}-flexric.{{ .Release.Namespace }}.svc.cluster.local
+  flexric_image:   {{ $flexricImage | quote }}
+  ns3_image:       {{ printf "%s/%s:%s"
+                      .Values.global.registry
+                      .Values.ns3.image.repository
+                      (default .Values.global.defaultTag .Values.ns3.image.tag)
+                      | quote }}

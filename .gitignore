@@ -1,35 +1,52 @@
-# ── Compiled build artifacts (can be recompiled from source) ──
-yousef_fathy/flexric/build/
-yousef_fathy/ns-O-RAN-flexric/mmwave-LENA-oran/build/
-yousef_fathy/ns-O-RAN-flexric/mmwave-LENA-oran/cmake-cache/
-yousef_fathy/swig/
+# ── Compiled build artifacts (recompile from source — see `make build-info`) ──
+platform/flexric/build/
+platform/flexric/swig/
+platform/ns3-sim/mmwave-LENA-oran/build/
+platform/ns3-sim/mmwave-LENA-oran/cmake-cache/
 
 # ── Node.js ──
-5g-gui-v2/node_modules/
-5g-gui-v2/dist/
-5g-gui-v2.zip
+platform/gui/node_modules/
+platform/gui/dist/
+platform/gui/.vite/
 
-# ── Large simulation log files (regenerated every run) ──
-3D_GUI_Sim_Results/*/simulation.log
-3D_GUI_Sim_Results/*/xapp.log
-3D_GUI_Sim_Results/*/gru.log
-3D_GUI_Sim_Results/*/pusher.log
-3D_GUI_Sim_Results/*/flexric.log
-3D_GUI_Sim_Results/*/lstm_features.csv
-
-# ── Simulation output files (written fresh every run, not source) ──
-yousef_fathy/ns-O-RAN-flexric/mmwave-LENA-oran/energyfilecell*.csv
-yousef_fathy/ns-O-RAN-flexric/mmwave-LENA-oran/ue_position.txt
-yousef_fathy/ns-O-RAN-flexric/mmwave-LENA-oran/gnbs.txt
-
-# ── SQLite simulation database (runtime output) ──
-sim_decisions.db
-
-# ── Python cache ──
+# ── Python venv & caches ──
+.venv/
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
+
+# ── Large simulation log files (regenerated every run) ──
+sim-results/*/simulation.log
+sim-results/*/xapp.log
+sim-results/*/gru.log
+sim-results/*/rl.log
+sim-results/*/pusher.log
+sim-results/*/flexric.log
+sim-results/*/controller.log
+sim-results/*/lstm_features.csv
+
+# ── Terraform local state + provider cache ──
+infra/terraform/**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+crash.log
+crash.*.log
+
+# ── Generated/backup XML scenarios (large, regenerated) ──
+platform/ns3-sim/mmwave-LENA-oran/scenario0_handover*copy*.xml
+
+# ── ns-3 runtime output files (written fresh every run, not source) ──
+platform/ns3-sim/mmwave-LENA-oran/energyfilecell*.csv
+platform/ns3-sim/mmwave-LENA-oran/ue_position.txt
+platform/ns3-sim/mmwave-LENA-oran/gnbs.txt
+
+# ── SQLite simulation database (runtime output) ──
+sim_decisions.db
+
+# ── Local env file (copy of .env.example with secrets) ──
+.env
 
 # ── Zip backups ──
 *.zip

@@ -1,0 +1,91 @@
+{{- if .Values.flexric.enabled -}}
+{{/*
+═══════════════════════════════════════════════════════════════════════════════
+  FlexRIC nearRT-RIC
+
+  Single-replica Deployment serving the E2 interface on SCTP/36421 and the
+  E42 interface on SCTP/36422 to xApp Jobs spawned by the controller.
+
+  SCTP requirements:
+    - Cluster nodes need the `sctp` kernel module loaded.
+    - The CNI must support SCTP (calico, cilium, k3s default flannel — all OK).
+    - kube-proxy supports SCTP since 1.20 (no flag needed in modern clusters).
+═══════════════════════════════════════════════════════════════════════════════
+*/}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "oran.fullname" . }}-flexric
+  labels:
+    {{- include "oran.labels" . | nindent 4 }}
+    app.kubernetes.io/component: flexric
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate          # only one FlexRIC instance at a time (E2 SCTP)
+  selector:
+    matchLabels:
+      {{- include "oran.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: flexric
+  template:
+    metadata:
+      labels:
+        {{- include "oran.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: flexric
+    spec:
+      containers:
+        - name: nearrt-ric
+          image: {{ include "oran.image" (dict
+                    "registry" .Values.global.registry
+                    "repo"     .Values.flexric.image.repository
+                    "tag"      .Values.flexric.image.tag
+                    "default"  .Values.global.defaultTag) }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          # Default CMD in the upstream image is `stdbuf -o0 nearRT-RIC`,
+          # which reads /usr/local/etc/flexric.conf. Override here only if you
+          # need a custom config path.
+          ports:
+            - name: e2
+              containerPort: 36421
+              protocol: SCTP
+            - name: e42
+              containerPort: 36422
+              protocol: SCTP
+          # FlexRIC writes its log to /tmp/flexric.log inside the container.
+          # We don't probe via HTTP; use a tiny SCTP port-presence check.
+          livenessProbe:
+            tcpSocket:
+              port: 36421
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          readinessProbe:
+            tcpSocket:
+              port: 36421
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.flexric.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "oran.fullname" . }}-flexric
+  labels:
+    {{- include "oran.labels" . | nindent 4 }}
+    app.kubernetes.io/component: flexric
+spec:
+  type: {{ .Values.flexric.service.type }}
+  ports:
+    - name: e2
+      port: 36421
+      targetPort: e2
+      protocol: SCTP
+    - name: e42
+      port: 36422
+      targetPort: e42
+      protocol: SCTP
+  selector:
+    {{- include "oran.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: flexric
+{{- end }}

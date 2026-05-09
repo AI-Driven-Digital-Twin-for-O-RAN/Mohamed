@@ -1,0 +1,120 @@
+{{- if .Values.controller.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "oran.fullname" . }}-controller
+  labels:
+    {{- include "oran.labels" . | nindent 4 }}
+    app.kubernetes.io/component: controller
+spec:
+  replicas: {{ .Values.controller.replicas }}
+  selector:
+    matchLabels:
+      {{- include "oran.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: controller
+  template:
+    metadata:
+      labels:
+        {{- include "oran.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: controller
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: {{ .Values.controller.service.port | quote }}
+        prometheus.io/path: /metrics
+    spec:
+      {{- if .Values.controller.rbac.createJobs }}
+      serviceAccountName: {{ include "oran.fullname" . }}-controller
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: controller
+          image: {{ include "oran.image" (dict
+                    "registry" .Values.global.registry
+                    "repo"     .Values.controller.image.repository
+                    "tag"      .Values.controller.image.tag
+                    "default"  .Values.global.defaultTag) }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.controller.service.port }}
+              protocol: TCP
+          env:
+            {{- range $k, $v := .Values.controller.env }}
+            - name: {{ $k }}
+              value: {{ $v | quote }}
+            {{- end }}
+            # K8s context, used by k8s_client.py to talk to the API server.
+            - name: KUBE_NAMESPACE
+              value: {{ .Release.Namespace | quote }}
+            - name: HELM_RELEASE
+              value: {{ .Release.Name | quote }}
+            - name: XAPP_REGISTRY_CM
+              value: {{ printf "%s-xapp-registry" (include "oran.fullname" .) | quote }}
+            - name: XAPP_REGISTRY_FILE
+              value: /etc/oran/xapps.json
+            # Job-creation defaults — used by k8s_client.py when it builds
+            # ns-3 + xApp Job manifests in real (non-demo) mode.
+            - name: FLEXRIC_SERVICE
+              value: {{ printf "%s-flexric" (include "oran.fullname" .) | quote }}
+            - name: FLEXRIC_E2_PORT
+              value: "36421"
+            - name: FLEXRIC_IMAGE
+              value: {{ include "oran.image" (dict
+                        "registry" .Values.global.registry
+                        "repo"     .Values.flexric.image.repository
+                        "tag"      .Values.flexric.image.tag
+                        "default"  .Values.global.defaultTag) | quote }}
+            - name: NS3_IMAGE
+              value: {{ include "oran.image" (dict
+                        "registry" .Values.global.registry
+                        "repo"     .Values.ns3.image.repository
+                        "tag"      .Values.ns3.image.tag
+                        "default"  .Values.global.defaultTag) | quote }}
+            # Each xApp's Python service gets discovered by env-var injection
+            # so the controller can talk to it without hardcoded hostnames.
+            {{- range $id, $x := .Values.xapps }}
+            {{- if and $x.enabled $x.pythonService.enabled }}
+            - name: {{ printf "XAPP_%s_URL" (upper (replace "-" "_" $id)) | quote }}
+              value: {{ printf "http://%s-%s.%s.svc.cluster.local:%d" (include "oran.fullname" $) $id $.Release.Namespace (int $x.pythonService.port) | quote }}
+            {{- end }}
+            {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 15
+          # In-cluster readiness only requires the process to be responsive.
+          # /readyz checks for FlexRIC/ns-3 binaries on disk — that was designed
+          # for host mode. In Kubernetes the controller calls the K8s API
+          # instead, so /healthz is the right probe target here.
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.controller.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: xapp-registry
+              mountPath: /etc/oran
+              readOnly: true
+      volumes:
+        - name: data
+          {{- if .Values.controller.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "oran.fullname" . }}-controller-data
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        - name: xapp-registry
+          configMap:
+            name: {{ include "oran.fullname" . }}-xapp-registry
+{{- end }}

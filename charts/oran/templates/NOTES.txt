@@ -1,0 +1,74 @@
+════════════════════════════════════════════════════════════════════
+  5G O-RAN platform — installed!
+  Release name: {{ .Release.Name }}
+  Namespace:    {{ .Release.Namespace }}
+════════════════════════════════════════════════════════════════════
+
+Components deployed:
+  ✓ Controller         {{ include "oran.fullname" . }}-controller (port {{ .Values.controller.service.port }})
+  ✓ 3D GUI             {{ include "oran.fullname" . }}-gui        (port {{ .Values.gui.service.port }})
+{{- if .Values.prometheus.enabled }}
+  ✓ Prometheus         {{ include "oran.fullname" . }}-prometheus (port {{ .Values.prometheus.service.port }})
+{{- end }}
+{{- if .Values.grafana.enabled }}
+  ✓ Grafana            {{ include "oran.fullname" . }}-grafana    (port {{ .Values.grafana.service.port }})  [{{ .Values.grafana.adminUser }}/{{ .Values.grafana.adminPassword }}]
+{{- end }}
+
+xApps registered:
+{{- range $id, $x := .Values.xapps }}
+{{- if $x.enabled }}
+  ✓ {{ $id | printf "%-18s" }}{{ if $x.pythonService.enabled }}python-service deployed (port {{ $x.pythonService.port }}){{ else }}C-xApp only (Job-spawned){{ end }}
+{{- end }}
+{{- end }}
+
+Quick checks:
+
+  # Is everything Running?
+  kubectl get pods -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Release.Name }}
+
+  # Controller health
+  kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "oran.fullname" . }}-controller 8001:{{ .Values.controller.service.port }} &
+  curl http://localhost:8001/healthz
+  curl http://localhost:8001/readyz | jq
+
+  # 3D GUI (without Ingress)
+  kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "oran.fullname" . }}-gui 3001:{{ .Values.gui.service.port }} &
+  open http://localhost:3001
+
+  # xApp registry — what the controller sees
+  kubectl get configmap -n {{ .Release.Namespace }} {{ include "oran.fullname" . }}-xapp-registry -o jsonpath='{.data.xapps\.json}' | jq
+{{- if .Values.grafana.enabled }}
+
+  # Grafana (pre-loaded with O-RAN dashboard)
+  kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "oran.fullname" . }}-grafana 3000:{{ .Values.grafana.service.port }} &
+  open http://localhost:3000        # login: {{ .Values.grafana.adminUser }} / {{ .Values.grafana.adminPassword }}
+  # Dashboard is at /d/oran-overview
+{{- end }}
+{{- if .Values.prometheus.enabled }}
+
+  # Prometheus
+  kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "oran.fullname" . }}-prometheus 9090:{{ .Values.prometheus.service.port }} &
+  open http://localhost:9090
+{{- end }}
+
+{{- if .Values.gui.ingress.enabled }}
+
+3D GUI is exposed via Ingress at:
+{{- range .Values.gui.ingress.hosts }}
+  http://{{ .host }}{{ (index .paths 0).path }}
+{{- end }}
+(Ensure an IngressClass + cert-manager are installed in the cluster.)
+{{- end }}
+
+To uninstall:
+  helm uninstall {{ .Release.Name }} -n {{ .Release.Namespace }}
+
+To list all releases:
+  helm list -A
+
+Adding a 4th xApp:
+  1. Add an entry under `.Values.xapps` (one block — see existing entries)
+  2. Push the image to {{ .Values.global.registry }}/<image>:<tag>
+  3. helm upgrade {{ .Release.Name }} charts/oran -n {{ .Release.Namespace }}
+
+No template changes needed — that's the registry pattern at work.

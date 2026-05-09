@@ -1,0 +1,10 @@
+__pycache__
+*.pyc
+*.log
+.env
+.cache
+Datasets/
+Results/
+train_*.py
+*.md
+requirements.txt

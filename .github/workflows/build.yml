@@ -1,0 +1,75 @@
+name: build
+
+# Build + push images on every push to main and on every tag.
+# Tags: vX.Y.Z → mohamed710/<image>:X.Y.Z + :latest
+# Branch builds: → mohamed710/<image>:dev
+on:
+  push:
+    branches: [main, master]
+    tags: ["v*"]
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: docker.io
+  REGISTRY_USER: mohamed710
+
+jobs:
+  build-and-push:
+    name: ${{ matrix.image }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: oran-controller
+            context: platform/controller
+            dockerfile: platform/controller/Dockerfile
+          - image: oran-gui
+            context: platform/gui
+            dockerfile: platform/gui/Dockerfile
+          - image: xapp-gru-service
+            context: xapps/gru-handover
+            dockerfile: xapps/gru-handover/python-service/Dockerfile
+          - image: xapp-rl-service
+            context: xapps/rl-handover/python-service
+            dockerfile: xapps/rl-handover/python-service/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Compute tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY_USER }}/${{ matrix.image }}
+          tags: |
+            type=ref,event=branch,prefix=
+            type=ref,event=tag,prefix=
+            type=semver,pattern={{version}}
+            type=raw,value=dev,enable=${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' }}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+
+      - name: Login to Docker Hub
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ env.REGISTRY_USER }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to:   type=gha,scope=${{ matrix.image }},mode=max

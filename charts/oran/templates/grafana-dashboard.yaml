@@ -1,0 +1,136 @@
+{{- if .Values.grafana.enabled -}}
+{{/*
+  Pre-provisioned O-RAN demo dashboard. Loaded automatically by Grafana
+  via the providers.yaml + dashboards/ mount in the deployment.
+
+  Panels target metrics emitted by the controller's /metrics endpoint:
+    oran_component_up{component}, oran_e2_connections, oran_handovers_total{xapp,result},
+    oran_pingpong_rate_pct{xapp}, oran_decision_accuracy_pct{xapp}, oran_simulations_total{xapp,scenario}
+*/}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "oran.fullname" . }}-grafana-dashboards
+  labels:
+    {{- include "oran.labels" . | nindent 4 }}
+    app.kubernetes.io/component: grafana
+data:
+  oran-overview.json: |-
+    {
+      "title": "O-RAN platform — overview",
+      "uid": "oran-overview",
+      "tags": ["oran", "5g", "demo"],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "10s",
+      "time": { "from": "now-1h", "to": "now" },
+      "panels": [
+        {
+          "type": "stat",
+          "title": "Component health",
+          "id": 1,
+          "gridPos": { "x": 0, "y": 0, "w": 24, "h": 4 },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+            "colorMode": "background",
+            "textMode": "value_and_name"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [
+                { "type": "value", "options": { "0": { "text": "DOWN", "color": "red"  } } },
+                { "type": "value", "options": { "1": { "text": "UP",   "color": "green" } } }
+              ]
+            }
+          },
+          "targets": [
+            { "expr": "oran_component_up", "legendFormat": "{{ "{{component}}" }}", "refId": "A" }
+          ]
+        },
+        {
+          "type": "stat",
+          "title": "Total simulations",
+          "id": 2,
+          "gridPos": { "x": 0, "y": 4, "w": 6, "h": 5 },
+          "targets": [
+            { "expr": "sum(oran_simulations_total)", "refId": "A" }
+          ]
+        },
+        {
+          "type": "stat",
+          "title": "E2 connections (live)",
+          "id": 3,
+          "gridPos": { "x": 6, "y": 4, "w": 6, "h": 5 },
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "red",    "value": null },
+                  { "color": "yellow", "value": 1 },
+                  { "color": "green",  "value": 7 }
+                ]
+              }
+            }
+          },
+          "targets": [{ "expr": "oran_e2_connections", "refId": "A" }]
+        },
+        {
+          "type": "stat",
+          "title": "Active xApp",
+          "id": 4,
+          "gridPos": { "x": 12, "y": 4, "w": 6, "h": 5 },
+          "options": { "textMode": "value", "graphMode": "none" },
+          "targets": [
+            { "expr": "sum by (component) (oran_component_up{component=\"xapp\"})",
+              "legendFormat": "{{ "{{component}}" }}", "refId": "A" }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "Ping-pong rate (%) per xApp",
+          "id": 5,
+          "gridPos": { "x": 0, "y": 9, "w": 12, "h": 8 },
+          "fieldConfig": {
+            "defaults": { "unit": "percent", "min": 0, "max": 100 }
+          },
+          "targets": [
+            { "expr": "oran_pingpong_rate_pct", "legendFormat": "{{ "{{xapp}}" }}", "refId": "A" }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "Decision accuracy (%) per xApp",
+          "id": 6,
+          "gridPos": { "x": 12, "y": 9, "w": 12, "h": 8 },
+          "fieldConfig": {
+            "defaults": { "unit": "percent", "min": 0, "max": 100 }
+          },
+          "targets": [
+            { "expr": "oran_decision_accuracy_pct", "legendFormat": "{{ "{{xapp}}" }}", "refId": "A" }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "Handovers per minute (success vs ping-pong)",
+          "id": 7,
+          "gridPos": { "x": 0, "y": 17, "w": 24, "h": 8 },
+          "targets": [
+            { "expr": "sum by (xapp, result) (rate(oran_handovers_total[5m])) * 60",
+              "legendFormat": "{{ "{{xapp}}" }} — {{ "{{result}}" }}", "refId": "A" }
+          ]
+        },
+        {
+          "type": "heatmap",
+          "title": "Handover decision latency (xApp inference)",
+          "id": 8,
+          "gridPos": { "x": 0, "y": 25, "w": 24, "h": 8 },
+          "targets": [
+            { "expr": "sum by (le) (rate(oran_decision_latency_seconds_bucket[5m]))",
+              "format": "heatmap", "refId": "A" }
+          ]
+        }
+      ]
+    }
+{{- end }}

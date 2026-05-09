@@ -1,0 +1,15 @@
+# Keep the build context small — exclude generated artifacts that the build
+# would regenerate inside the image anyway.
+mmwave-LENA-oran/build/
+mmwave-LENA-oran/cmake-cache/
+mmwave-LENA-oran/.lock-*
+mmwave-LENA-oran/*.csv
+mmwave-LENA-oran/*.txt
+mmwave-LENA-oran/*.xml
+e2sim-kpmv3/e2sim/build/
+e2sim-kpmv3/e2sim/.cache/
+**/__pycache__/
+**/*.pyc
+**/*.o
+**/*.a
+.git/

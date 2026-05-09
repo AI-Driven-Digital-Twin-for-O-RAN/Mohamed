@@ -1,0 +1,17 @@
+{{- if and .Values.controller.enabled .Values.controller.persistence.enabled -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "oran.fullname" . }}-controller-data
+  labels:
+    {{- include "oran.labels" . | nindent 4 }}
+    app.kubernetes.io/component: controller
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: {{ .Values.controller.persistence.size | quote }}
+  {{- if .Values.controller.persistence.storageClass }}
+  storageClassName: {{ .Values.controller.persistence.storageClass | quote }}
+  {{- end }}
+{{- end }}

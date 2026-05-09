@@ -1,0 +1,25 @@
+apiVersion: v2
+name: oran
+description: 5G O-RAN intelligent network management platform — controller, GUI, and pluggable xApps
+type: application
+
+# Chart version is bumped on every chart change.
+version: 0.1.0
+
+# Application version — semver of the platform itself.
+appVersion: "0.1.0"
+
+keywords:
+  - 5g
+  - o-ran
+  - flexric
+  - ns-3
+  - handover
+  - xapp
+  - mlops
+
+maintainers:
+  - name: Mohamed Moustafa
+    email: mhmdmstfa710@gmail.com
+
+home: https://github.com/AI-Driven-Digital-Twin-for-O-RAN/Mohamed

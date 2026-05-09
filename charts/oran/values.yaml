@@ -1,0 +1,235 @@
+# ════════════════════════════════════════════════════════════════════
+#  Helm values — 5G O-RAN platform
+#
+#  Override on `helm install`:  helm install oran charts/oran -f my-values.yaml
+#  Or per-key:                  helm install oran charts/oran --set gui.replicas=2
+# ════════════════════════════════════════════════════════════════════
+
+# Container registry namespace. Image refs throughout this file resolve to
+# `${registry}/${component-image-name}:${tag}`.
+global:
+  registry: mohamed710
+  imagePullPolicy: IfNotPresent
+  # Override per-image tag below; this is the fallback.
+  defaultTag: dev
+
+# ── FastAPI controller ──────────────────────────────────────────────────────
+controller:
+  enabled: true
+  replicas: 1
+  image:
+    repository: oran-controller
+    tag: ""           # falls back to global.defaultTag when empty
+  service:
+    type: ClusterIP
+    port: 8001
+  resources:
+    requests: { cpu: "100m", memory: "256Mi" }
+    limits:   { cpu: "1000m", memory: "1Gi" }
+  # Phase 4F: controller is now K8s-aware. RBAC grants permission to create
+  # Jobs (ns-3 simulations + C xApps) and watch their pods/logs.
+  rbac:
+    createJobs: true
+  env:
+    PROJECT_ROOT: /app
+    RUNTIME_CSV_HOME: /data
+    RESULTS_DIR: /data/sim-results
+    DECISIONS_DB: /data/sim_decisions.db
+    # Tells the controller to use K8s API instead of host subprocesses.
+    ORCHESTRATOR_MODE: k8s
+    # Demo mode emits busybox-backed Jobs so we can prove orchestration works
+    # before the real ns-3 / C xApp images exist. Flip to "false" once images
+    # are available in the registry.
+    K8S_DEMO_MODE: "true"
+  persistence:
+    enabled: true
+    size: 5Gi
+    storageClass: ""
+
+# ── 3D GUI (Vite + Three.js, served by nginx) ───────────────────────────────
+gui:
+  enabled: true
+  replicas: 2
+  image:
+    repository: oran-gui
+    tag: ""
+  service:
+    type: ClusterIP
+    port: 80
+  ingress:
+    enabled: true
+    className: ""        # leave empty for default IngressClass
+    hosts:
+      - host: oran.local
+        paths:
+          - path: /
+            pathType: Prefix
+    tls: []
+  resources:
+    requests: { cpu: "50m",  memory: "64Mi" }
+    limits:   { cpu: "200m", memory: "256Mi" }
+
+# ── FlexRIC nearRT-RIC ───────────────────────────────────────────────────────
+# The upstream image bakes the nearRT-RIC binary AND every C xApp into one
+# image, so xApp Jobs reuse this image and just override the command to
+# point at /usr/local/flexric/xApp/c/<id>/<binary>.
+flexric:
+  enabled: true
+  replicas: 1
+  image:
+    repository: flexric
+    tag: ""              # falls back to global.defaultTag
+  service:
+    type: ClusterIP
+  resources:
+    requests: { cpu: "200m", memory: "256Mi" }
+    limits:   { cpu: "2000m", memory: "1Gi" }
+
+# ── ns-3 simulation image (used by controller's K8s Job creation) ────────────
+ns3:
+  image:
+    repository: ns3-mmwave
+    tag: ""
+  resources:
+    # Heavy: a single ns-3 sim is CPU-bound and memory-hungry.
+    requests: { cpu: "4",  memory: "4Gi" }
+    limits:   { cpu: "8",  memory: "16Gi" }
+
+# ── xApp registry — the multi-xApp pattern ───────────────────────────────────
+#
+# Each entry below describes ONE xApp. The chart iterates this map to render
+# Deployment + Service for every entry where `pythonService.enabled: true`.
+#
+# Adding a new xApp = adding one entry here + pushing the image. No template
+# changes, no controller code changes.
+#
+# The C xApp images are referenced for Phase 4F (controller refactor to
+# create K8s Jobs per simulation run). They are not deployed continuously.
+xapps:
+
+  gru-handover:
+    enabled: true
+    description: GRU-based handover optimization xApp (Fares' model)
+    pythonService:
+      enabled: true
+      image:
+        repository: xapp-gru-service
+        tag: ""
+      port: 5000
+      replicas: 1
+      autoscaling:
+        enabled: false
+        minReplicas: 1
+        maxReplicas: 5
+        targetCPU: 70
+      resources:
+        requests: { cpu: "200m", memory: "1Gi" }
+        limits:   { cpu: "2000m", memory: "4Gi" }
+    cxapp:
+      # Empty image → fall back to the platform-wide FlexRIC image (every C
+      # xApp is built INTO that image at /usr/local/flexric/xApp/c/...).
+      # Override only when shipping a custom xApp not in the FlexRIC tree.
+      image:
+        repository: ""
+        tag: ""
+      binary: /usr/local/flexric/xApp/c/handover_gru/xapp_handover_gru
+    config:
+      indicationPeriodicity: 0.05
+      cells: 7
+      e2FunctionIdKpm: 2
+      e2FunctionIdRc: 3
+      hoSinrDifference: 3
+
+  rl-handover:
+    enabled: true
+    description: DDQN reinforcement-learning handover xApp (Salama's model)
+    pythonService:
+      enabled: true
+      image:
+        repository: xapp-rl-service
+        tag: ""
+      port: 5001
+      replicas: 1
+      autoscaling:
+        enabled: false
+        minReplicas: 1
+        maxReplicas: 5
+        targetCPU: 70
+      resources:
+        requests: { cpu: "200m", memory: "512Mi" }
+        limits:   { cpu: "1000m", memory: "2Gi" }
+    cxapp:
+      image:
+        repository: ""        # use FlexRIC image
+        tag: ""
+      binary: /usr/local/flexric/xApp/c/handover_rl/xapp_handover_rl
+    config:
+      indicationPeriodicity: 0.05
+      cells: 7
+      e2FunctionIdKpm: 2
+      e2FunctionIdRc: 3
+      hoSinrDifference: 3
+
+  lb-awf:
+    enabled: true
+    description: Adaptive Weight Function load-balancing xApp (Yousef)
+    pythonService:
+      enabled: false      # pure C xApp, no Python service
+    cxapp:
+      image:
+        repository: ""        # use FlexRIC image
+        tag: ""
+      binary: /usr/local/flexric/xApp/c/lb_awf/xapp_lb_awf
+    config:
+      indicationPeriodicity: 1.5
+      cells: 8
+      e2FunctionIdKpm: 2
+
+# ── Observability — Prometheus + Grafana ────────────────────────────────────
+prometheus:
+  enabled: true
+  image:
+    repository: prom/prometheus
+    tag: v2.55.1
+  service:
+    type: ClusterIP
+    port: 9090
+  scrapeInterval: 15s
+  resources:
+    requests: { cpu: "100m", memory: "256Mi" }
+    limits:   { cpu: "500m", memory: "1Gi" }
+  persistence:
+    enabled: false   # short-lived for dev; flip on for real use
+    size: 5Gi
+
+grafana:
+  enabled: true
+  image:
+    repository: grafana/grafana
+    tag: 10.4.2
+  service:
+    type: ClusterIP
+    port: 3000
+  adminUser: admin
+  adminPassword: admin
+  resources:
+    requests: { cpu: "100m", memory: "128Mi" }
+    limits:   { cpu: "500m", memory: "512Mi" }
+  ingress:
+    enabled: false
+    className: ""
+    host: grafana.oran.local
+
+# ── Pod-level defaults ──────────────────────────────────────────────────────
+podSecurityContext:
+  fsGroup: 10001
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: [ALL]
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

@@ -1,0 +1,32 @@
+{{- if and .Values.gui.enabled .Values.gui.ingress.enabled -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "oran.fullname" . }}-gui
+  labels:
+    {{- include "oran.labels" . | nindent 4 }}
+    app.kubernetes.io/component: gui
+spec:
+  {{- if .Values.gui.ingress.className }}
+  ingressClassName: {{ .Values.gui.ingress.className }}
+  {{- end }}
+  {{- with .Values.gui.ingress.tls }}
+  tls:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  rules:
+    {{- range .Values.gui.ingress.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType }}
+            backend:
+              service:
+                name: {{ include "oran.fullname" $ }}-gui
+                port:
+                  number: {{ $.Values.gui.service.port }}
+          {{- end }}
+    {{- end }}
+{{- end }}

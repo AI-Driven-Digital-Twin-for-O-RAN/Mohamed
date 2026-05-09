@@ -1,0 +1,13 @@
+# Handover Optimization - Requirements
+# Install: pip install -r requirements.txt
+
+# Core dependencies
+numpy==1.26.4
+pandas>=2.0.0
+scikit-learn>=1.3.0
+
+# TensorFlow (CPU version - use tensorflow-gpu for GPU support)
+tensorflow>=2.15.0
+
+# Serialization
+joblib>=1.3.0

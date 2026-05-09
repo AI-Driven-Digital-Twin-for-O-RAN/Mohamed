@@ -1,0 +1,49 @@
+{{/*
+  RBAC for the controller — only created when rbac.createJobs is true.
+  This grants permission to create + watch Jobs and Pods, which the controller
+  will use (Phase 4F) to spawn ns-3 simulations and C xApps as K8s Jobs
+  instead of host subprocesses.
+*/}}
+{{- if and .Values.controller.enabled .Values.controller.rbac.createJobs -}}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "oran.fullname" . }}-controller
+  labels:
+    {{- include "oran.labels" . | nindent 4 }}
+    app.kubernetes.io/component: controller
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "oran.fullname" . }}-controller
+  labels:
+    {{- include "oran.labels" . | nindent 4 }}
+    app.kubernetes.io/component: controller
+rules:
+  - apiGroups: [batch]
+    resources: [jobs]
+    verbs: [get, list, watch, create, delete]
+  - apiGroups: [""]
+    resources: [pods, pods/log, pods/status]
+    verbs: [get, list, watch]
+  - apiGroups: [""]
+    resources: [configmaps]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "oran.fullname" . }}-controller
+  labels:
+    {{- include "oran.labels" . | nindent 4 }}
+    app.kubernetes.io/component: controller
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "oran.fullname" . }}-controller
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "oran.fullname" . }}-controller
+{{- end }}

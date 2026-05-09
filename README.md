@@ -1,739 +1,595 @@
-# Graduation Project — 5G O-RAN Intelligent Network Management Platform
+# 5G O-RAN Intelligent Network Management Platform
 
-**Author:** Omar Farouk  
-**Institution:** Graduation Project — Orange Research Initiative  
-**Platform:** FlexRIC · ns-3 mmWave O-RAN · GRU xApp · 3D Command Center GUI  
+> A full-stack, software-defined 5G O-RAN platform: ns-3 mmWave RAN simulator + FlexRIC near-RT RIC + three pluggable AI xApps (GRU, RL, AWF) + a 3D command-center GUI, all orchestrated by a FastAPI controller and shippable as a Helm chart on Kubernetes.
 
----
+[![lint](https://github.com/AI-Driven-Digital-Twin-for-O-RAN/Mohamed/actions/workflows/lint.yml/badge.svg)](https://github.com/AI-Driven-Digital-Twin-for-O-RAN/Mohamed/actions/workflows/lint.yml)
+[![unit-tests](https://github.com/AI-Driven-Digital-Twin-for-O-RAN/Mohamed/actions/workflows/unit-tests.yml/badge.svg)](https://github.com/AI-Driven-Digital-Twin-for-O-RAN/Mohamed/actions/workflows/unit-tests.yml)
+[![smoke](https://github.com/AI-Driven-Digital-Twin-for-O-RAN/Mohamed/actions/workflows/smoke.yml/badge.svg)](https://github.com/AI-Driven-Digital-Twin-for-O-RAN/Mohamed/actions/workflows/smoke.yml)
+[![build](https://github.com/AI-Driven-Digital-Twin-for-O-RAN/Mohamed/actions/workflows/build.yml/badge.svg)](https://github.com/AI-Driven-Digital-Twin-for-O-RAN/Mohamed/actions/workflows/build.yml)
 
-## Table of Contents
-
-1. [Project Overview](#1-project-overview)
-2. [System Architecture](#2-system-architecture)
-3. [Component Breakdown](#3-component-breakdown)
-   - [FlexRIC — nearRT-RIC](#31-flexric--nearrt-ric)
-   - [ns-3 mmWave O-RAN Simulation](#32-ns-3-mmwave-o-ran-simulation)
-   - [GRU Handover xApp](#33-gru-handover-xapp)
-   - [GRU Python Prediction Service](#34-gru-python-prediction-service)
-   - [Load Balancing xApp](#35-load-balancing-xapp)
-   - [Data Pusher](#36-data-pusher)
-   - [2D GUI — Grafana Dashboard](#37-2d-gui--grafana-dashboard)
-   - [3D Command Center GUI](#38-3d-command-center-gui)
-   - [System Controller (FastAPI)](#39-system-controller-fastapi)
-4. [GRU Model — Handover Optimization](#4-gru-model--handover-optimization)
-5. [Ping-Pong Avoidance Logic](#5-ping-pong-avoidance-logic)
-6. [3D GUI — Deep Dive](#6-3d-gui--deep-dive)
-7. [Simulation Results](#7-simulation-results)
-8. [Decision Log & SQLite Database](#8-decision-log--sqlite-database)
-9. [Repository Structure](#9-repository-structure)
-10. [How to Run](#10-how-to-run)
-11. [Manual Step-by-Step](#11-manual-step-by-step)
-12. [Troubleshooting](#12-troubleshooting)
-13. [Key Parameters Reference](#13-key-parameters-reference)
-14. [Technical Notes & Lessons Learned](#14-technical-notes--lessons-learned)
+Graduation project under an **Orange** research initiative.
 
 ---
 
-## 1. Project Overview
+## Table of contents
 
-This project is a full-stack **5G O-RAN intelligent network management platform** built entirely in software. It simulates a real mmWave 5G network with 8 cells and 20 User Equipments (UEs), runs a GRU-based AI xApp that makes real-time handover decisions to prevent ping-pong behavior, and visualizes everything through both a **2D Grafana dashboard** and a custom-built **3D interactive Command Center GUI**.
-
-The platform was developed as part of a graduation project under an **Orange** research initiative. It covers the full O-RAN stack: from the simulated RAN (ns-3), through the E2 interface (FlexRIC), to the xApp layer where AI-driven decisions are made and sent back as RC control commands.
-
-**Two AI scenarios are implemented:**
-
-1. **GRU Handover Optimization** — A GRU (Gated Recurrent Unit) neural network predicts whether a handover should be executed or avoided based on Time-of-Stay (ToS) estimation and ping-pong detection. The model was trained on sequential SINR/KPM features.
-
-2. **Load Balancing (AWF)** — An Adaptive Weight Function algorithm distributes UE load evenly across cells by scoring candidate target cells using RSRP, load, and historical movement patterns.
-
-Both scenarios run on the same simulation platform, the same FlexRIC instance, and are controllable from the same 3D GUI.
-
----
-
-## 2. System Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                          FULL O-RAN PLATFORM                                │
-│                                                                             │
-│  ┌──────────────────┐   E2AP (SCTP:36421)   ┌─────────────────────────┐    │
-│  │  ns-3 Simulation │◄─────────────────────►│  FlexRIC nearRT-RIC     │    │
-│  │                  │                        │  (E2AP + E42 API)       │    │
-│  │  - 8 mmWave cells│                        │  - KPM v3.00            │    │
-│  │  - 1 LTE macro   │                        │  - RC v1.03             │    │
-│  │  - 20 UEs        │                        │  - xApp lifecycle       │    │
-│  │  - Mobile UEs    │                        └────────────┬────────────┘    │
-│  │  - KPM reports   │                                     │ E42 API         │
-│  │    every 0.05s   │                         ┌───────────┴──────────┐      │
-│  └──────────────────┘                         │                      │      │
-│          │                            ┌────────▼──────┐   ┌──────────▼────┐ │
-│          │ CSV logs                   │ xapp_handover │   │  xapp_lb_awf  │ │
-│          ▼                            │ _gru (C xApp) │   │  (C xApp)     │ │
-│  ┌──────────────────┐                 │               │   │               │ │
-│  │  sim_data_pusher │                 │ A3 event eval │   │ AWF scoring   │ │
-│  │  (Python)        │                 │ GRU query     │   │ ΔHOM adapt    │ │
-│  │  CSV → InfluxDB  │                 │ Cooldown mgmt │   │ TTT + guard   │ │
-│  └──────────────────┘                 └───────┬───────┘   └──────┬────────┘ │
-│          │                                    │                   │          │
-│          ▼                                    └────────┬──────────┘          │
-│  ┌──────────────────┐    REST :5000           │ RC CONTROL → ns-3 HO         │
-│  │  InfluxDB        │◄──────────────── gru_xapp.py (GRU Python service)      │
-│  │  (time-series DB)│                 │ - GRU inference                      │
-│  └──────────────────┘                 │ - ToS estimation                     │
-│          │                            │ - Ping-pong detection                │
-│          ▼                            └──────────────────────────────────────│
-│  ┌──────────────────┐                                                        │
-│  │  2D Grafana GUI  │        ┌─────────────────────────────────────────────┐ │
-│  │  (port 8000)     │        │  3D Command Center GUI (port 3001)          │ │
-│  │  - Live charts   │        │  - Three.js 3D network visualization        │ │
-│  │  - KPM metrics   │        │  - Real-time cell towers + UE positions     │ │
-│  └──────────────────┘        │  - SINR strip, load bars, handover log      │ │
-│                              │  - FastAPI Controller (port 8001)           │ │
-│                              │  - Launch/stop all components from browser  │ │
-│                              └─────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+1. [What this is](#1-what-this-is)
+2. [System architecture](#2-system-architecture)
+3. [Repository structure](#3-repository-structure)
+4. [The xApps — multi-xApp registry pattern](#4-the-xapps--multi-xapp-registry-pattern)
+5. [How to run](#5-how-to-run)
+   - [Quick start — local Kubernetes](#5a-quick-start--local-kubernetes-k3d--helm-recommended)
+   - [Local dev — Docker Compose](#5b-local-dev--docker-compose)
+   - [Native host mode](#5c-native-host-mode-for-real-ns-3-runs)
+   - [AWS cloud reference](#5d-aws-cloud-reference)
+6. [Building the heavy images (FlexRIC + ns-3)](#6-building-the-heavy-images-flexric--ns-3)
+7. [Testing](#7-testing)
+8. [Observability](#8-observability)
+9. [CI/CD](#9-cicd)
+10. [Architecture Decision Records](#10-architecture-decision-records)
+11. [GRU model — handover optimization](#11-gru-model--handover-optimization)
+12. [Ping-pong avoidance logic](#12-ping-pong-avoidance-logic)
+13. [Key parameters reference](#13-key-parameters-reference)
+14. [Troubleshooting](#14-troubleshooting)
+15. [Team](#15-team)
+16. [Acknowledgements](#16-acknowledgements)
 
 ---
 
-## 3. Component Breakdown
+## 1. What this is
 
-### 3.1 FlexRIC — nearRT-RIC
+A complete, software-only **5G O-RAN platform** that simulates a real mmWave network (8 cells, 20 UEs) and runs AI-driven xApps that make real-time handover decisions over the standard E2 interface. Three xApps ship today:
 
-**Binary:** `yousef_fathy/flexric/build/examples/ric/nearRT-RIC`  
-**Config:** `yousef_fathy/flexric/flexric.conf`  
-**Log:** `/tmp/flexric.log`  
-
-FlexRIC is the near-Real-Time RAN Intelligent Controller. It acts as the bridge between the simulated RAN (ns-3) and the xApps. It listens on SCTP port **36421** (not TCP — this is a common confusion).
-
-Key responsibilities:
-- Receives **E2 SETUP-REQUEST** from each ns-3 cell on startup
-- Manages **KPM subscriptions** — each cell sends KPM indication reports every `indicationPeriodicity` seconds
-- Routes **RC control commands** from xApps back to ns-3 cells to trigger handovers
-- Provides the **E42 API** so xApps can subscribe and send commands
-
-**Critical detail:** FlexRIC never logs to stdout. All output goes to `/tmp/flexric.log`. Always monitor this file, never `/tmp/farouk_flexric.log` which is a different (empty) file.
-
-To verify E2 connections are up:
-```bash
-grep -c "E2 SETUP-REQUEST" /tmp/flexric.log
-# Should equal the number of cells (7 for gru_scenario, 8 for lb_scenario)
-```
-
----
-
-### 3.2 ns-3 mmWave O-RAN Simulation
-
-**Directory:** `yousef_fathy/ns-O-RAN-flexric/mmwave-LENA-oran/`  
-**Binary:** `./ns3`  
-**Scenarios:**
-- `scratch/gru_scenario.cc` — GRU handover optimization
-- `scratch/load_balancing_scenario.cc` — AWF load balancing
-
-The simulation models a mmWave 5G heterogeneous network:
-- **7–8 mmWave small cells** (gNBs) arranged in a hexagonal layout
-- **1 LTE macro cell** as fallback
-- **20 mobile UEs** moving according to a random waypoint model
-- UEs connect to the best cell based on SINR measurements
-
-**Key simulation parameters:**
-
-| Parameter | GRU Scenario | LB Scenario | Description |
-|---|---|---|---|
-| `simTime` | 60 | 60 | Simulation duration in seconds |
-| `N_MmWaveEnbNodes` | 7 | 7 | Number of mmWave cells |
-| `N_Ues` | 20 | 20 | Number of user equipments |
-| `indicationPeriodicity` | **0.05** | **1.5** | KPM report interval (seconds) |
-| `hoSinrDifference` | 3 | 3 | A3 event SINR threshold (dB) |
-| `e2TermIp` | 127.0.0.1 | 127.0.0.1 | FlexRIC IP |
-
-**Why `indicationPeriodicity` differs:** The GRU model was trained on data collected at 0.05s intervals. Using a different interval changes the temporal patterns the model sees, causing degraded predictions. The LB xApp uses 1.5s because it only needs aggregate statistics per cell, not fine-grained per-UE time series.
-
-Each cell sends a **KPM indication** to FlexRIC every `indicationPeriodicity` seconds containing SINR, throughput, latency, PRB utilization, and per-UE connection status. These reports trigger xApp decision cycles.
-
----
-
-### 3.3 GRU Handover xApp
-
-**Binary:** `yousef_fathy/flexric/build/examples/xApp/c/handover_gru/xapp_handover_gru`  
-**Log:** `/tmp/farouk_xapp.log`  
-**Source:** `yousef_fathy/flexric/examples/xApp/c/handover_gru/`
-
-This is the C xApp that runs inside the FlexRIC environment. It subscribes to KPM indication reports and, on each report, evaluates every UE connected to the reporting cell.
-
-**Decision pipeline per UE:**
-
-```
-KPM Report Received
-       │
-       ▼
-Is UE in COOLDOWN state?
-   YES → skip (prevents too-frequent handovers for same UE)
-   NO  ↓
-       ▼
-A3 Event Evaluation:
-  For each neighbor cell:
-    SINR_neighbor > SINR_serving + hoSinrDifference (3 dB)?
-  NO → no suitable target → skip
-  YES ↓
-       ▼
-Best target cell identified (highest SINR gain)
-       ▼
-Query GRU Python service:
-  POST http://localhost:5000/predict
-  { features: [SINR, CQI, speed, bitrate, ...] (12 features × 10 timesteps) }
-       ▼
-GRU Response:
-  { decision: "EXECUTE" | "AVOID", confidence: 0.XX, ToS: X.XXs }
-       ▼
-EXECUTE → Send RC CONTROL to FlexRIC → ns-3 triggers handover
-           Write SUCCESS row to /home/omar_farouk/handover.csv
-AVOID   → Block handover, log suppression reason
-           Write START row to /home/omar_farouk/handover.csv (executed_ok=0)
-```
-
-**State machine per UE:**
-- `IDLE` — ready to evaluate
-- `WAITING_COMPLETION` — handover command sent, waiting for UE to appear in target cell
-- `COOLDOWN` — recently handed over, waiting cooldown period before next evaluation
-
-**handover.csv format:**
-```
-time_sec,ue_id,from_cell,to_cell,event,executed_ok
-1.98,10,4,3,START,0      ← GRU said AVOID
-1.99,10,4,3,SUCCESS,1    ← GRU said EXECUTE, handover completed
-```
-
----
-
-### 3.4 GRU Python Prediction Service
-
-**File:** `yousef_fathy/HANDOVER_xApp_Test/gru_xapp.py`  
-**Port:** 5000  
-**Log:** `/tmp/farouk_gru.log`
-
-This is a Flask REST service that wraps the trained GRU model. The C xApp sends feature vectors to it and receives EXECUTE/AVOID decisions.
-
-**Endpoints:**
-- `GET /health` — liveness check, returns `{"status": "ok"}`
-- `POST /predict` — takes 12 features × 10 timesteps, returns decision + confidence + ToS
-
-**Features consumed:**
-```python
-EXPECTED_FEATURES = [
-    "Level",           # RSRP level
-    "Qual",            # RSRQ quality
-    "SNR",             # Signal-to-noise ratio
-    "CQI",             # Channel quality indicator
-    "SecondCell_RSRP", # Best neighbor RSRP
-    "SecondCell_SNR",  # Best neighbor SNR
-    "NRxLev1",         # Neighbor cell level
-    "NQual1",          # Neighbor cell quality
-    "Speed",           # UE speed
-    "DL_bitrate",      # Downlink bitrate
-    "UL_bitrate",      # Uplink bitrate
-    "BANDWIDTH"        # Allocated bandwidth
-]
-```
-
-**Window size:** 10 timesteps — the model looks at the last 10 KPM reports to capture temporal dynamics before deciding.
-
-The service also:
-- Pushes GRU decision metrics to **InfluxDB** so they appear on the Grafana dashboard alongside the ns-3 KPM data
-- Monitors ns-3 CSV log files and runs autonomous inference for GUI visualization even when the C xApp is not active
-
----
-
-### 3.5 Load Balancing xApp
-
-**Binary:** `yousef_fathy/flexric/build/examples/xApp/c/lb_awf/xapp_lb_awf`  
-**Log:** `/tmp/farouk_xapp.log`  
-**Source:** `load balancing/xapp_lb.c`  
-**Reference paper:** Gures et al., "Load balancing in 5G HetNets based on AWF," *ICT Express*, 2023  
-
-The AWF (Adaptive Weight Function) load balancing xApp redistributes UEs from overloaded cells to underloaded cells. It does NOT use a GRU model — it uses a mathematical scoring function.
-
-**Algorithm:**
-1. For each overloaded cell (PRB utilization > threshold), identify candidate UEs to offload
-2. For each candidate UE, score each neighbor cell using the AWF formula:
-   ```
-   score = w1 * RSRPpilot + w2 * (1 - load) + w3 * history_factor
-   ```
-3. Trigger handover to the highest-scoring cell
-4. Apply guard timer and TTT (Time-To-Trigger) to prevent oscillation
-
-**Key differences from GRU scenario:**
-- No Python prediction service needed
-- Uses `indicationPeriodicity=1.5` (aggregate stats, not fine-grained time series)
-- Decisions based on cell load, not SINR gain
-- 8 cells instead of 7
-
----
-
-### 3.6 Data Pusher
-
-**File:** `yousef_fathy/ns-O-RAN-flexric/mmwave-LENA-oran/sim_data_pusher.py`  
-**Log:** `/tmp/farouk_pusher.log`
-
-A Python script that watches ns-3's CSV output files and streams the data to InfluxDB in real time. This feeds the **2D Grafana dashboard** with live KPM metrics (SINR per UE, cell throughput, latency, PRB usage).
-
----
-
-### 3.7 2D GUI — Grafana Dashboard
-
-**Port:** 8000  
-**Managed by:** Docker Compose  
-**Docker dir:** `yousef_fathy/ns-O-RAN-flexric/mmwave-LENA-oran/GUI/`
-
-The 2D GUI is the original monitoring dashboard. It runs two Docker containers:
-- **InfluxDB** — time-series database storing all KPM metrics
-- **FastAPI + Grafana backend** — serves the dashboard on port 8000
-
-This GUI was the starting point of the project. The 3D GUI was built alongside it as an enhancement, keeping both available simultaneously.
-
-To start only the 2D GUI:
-```bash
-cd yousef_fathy/ns-O-RAN-flexric/mmwave-LENA-oran/GUI
-docker compose up -d influxdb gui
-```
-
----
-
-### 3.8 3D Command Center GUI
-
-**Directory:** `5g-gui-v2/`  
-**Port:** 3001  
-**Stack:** Vite + Three.js + vanilla JavaScript  
-
-This is the major GUI contribution of this project — a full 3D interactive visualization of the live O-RAN network, built from scratch using Three.js and WebGL.
-
-**Features:**
-- **3D cell tower rendering** — each mmWave cell rendered as a tower with a glowing coverage sphere whose color shifts green→yellow→red based on load
-- **Live UE positions** — each of the 20 UEs rendered as a moving node, repositioned on every API poll
-- **SINR strip** — bottom-left bar chart showing per-UE SINR in dB, color-coded
-- **Handover log** — scrolling live feed of every handover event with UE ID, source→target cell, and timestamp
-- **Cell inspect tooltip** — click any cell tower to see its current SINR, load, UE count, throughput, latency
-- **KPI top bar** — live counts of cells, UEs, aggregate throughput, latency, load
-- **Control panel** — start/stop each system component individually (Docker, FlexRIC, Simulation, Pusher, xApp) with real-time status dots
-- **Scenario selector** — choose between gru_scenario and load_balancing_scenario
-- **Parameter inputs** — set UE count, cell count, and simulation time directly from the browser
-
-**Architecture:** The 3D GUI communicates with the **System Controller** (port 8001) via REST API. The browser polls `/ctrl/status`, `/ctrl/network-state`, and `/ctrl/handover-log` every second to update the visualization.
-
----
-
-### 3.9 System Controller (FastAPI)
-
-**File:** `5g-gui-v2/controller.py`  
-**Port:** 8001  
-**Log:** `/tmp/controller.log`
-
-The controller is the brain of the 3D GUI. It is a FastAPI application that:
-- Starts and stops every simulation component as subprocesses
-- Monitors process health and reports status to the 3D frontend
-- Orchestrates the full launch sequence with proper timing
-- Waits for FlexRIC E2 connections before starting the xApp
-- Detects simulation completion and auto-saves results
-- Generates decision logs, plots, and SQLite entries
-
-**Key API endpoints:**
-
-| Endpoint | Method | Description |
+| xApp | Decision strategy | Owner |
 |---|---|---|
-| `/ctrl/status` | GET | Returns `{docker, flexric, simulation, pusher, xapp}` all true/false |
-| `/ctrl/launch-all` | POST | Full orchestrated launch with timing |
-| `/ctrl/start/{component}` | POST | Start a single component |
-| `/ctrl/stop/{component}` | POST | Stop a single component |
-| `/ctrl/network-state` | GET | Live cell/UE positions and metrics for 3D rendering |
-| `/ctrl/handover-log` | GET | Latest handover events for the log panel |
-| `/ctrl/last-result` | GET | Summary of the most recent completed simulation |
-| `/ctrl/decisions` | GET | Query decision history from SQLite |
+| **GRU handover** | A trained GRU neural network predicts whether each handover would cause a ping-pong, using 10 × 12 KPM/SINR features. EXECUTE if ToS ≥ 1.2 s, else AVOID. | Fares Esmail |
+| **RL handover** | A DDQN agent learns the optimal handover policy from a normalized 8-feature state × 5-step sliding window. | Omar Salama |
+| **AWF load balancing** | The Adaptive Weight Function rebalances UEs across cells using `score = w₁·RSRPpilot + w₂·(1 − load) + w₃·history` (Gures et al., ICT Express 2023). | Yousef Fathy |
 
-**Launch sequence (automatic when pressing LAUNCH ALL):**
-```
-1. Kill all stale processes
-2. Clear /tmp/flexric.log
-3. Start Docker (InfluxDB + 2D backend)
-4. Start FlexRIC
-5. Wait for SCTP port 36421 to open (up to 60s)
-6. Start GRU Python service (port 5000) — GRU scenario only
-7. Start NS-3 simulation with correct parameters
-8. Wait for N E2 SETUP-REQUESTs in /tmp/flexric.log
-9. Start Data Pusher
-10. Start xApp (GRU or LB based on scenario)
-11. Monitor until simulation finishes
-12. Auto-save results to numbered sim### folder
-```
+Adding a fourth xApp is **one entry in `charts/oran/values.yaml`** + a Docker push — no template, controller, or GUI changes. See [ADR 0001](docs/ADR/0001-multi-xapp-registry-pattern.md).
 
 ---
 
-## 4. GRU Model — Handover Optimization
+## 2. System architecture
 
-**Model file:** `Fares/model/handover_model_final.keras`  
-**Scaler:** `Fares/artifacts/scaler.joblib`  
-**Config:** `Fares/artifacts/config.joblib`  
-**Training notebook:** `Fares/Handover_Optimization.ipynb`
+```
+                                  ┌────────────────────────────────────────┐
+                                  │  Operator browser / kubectl / curl     │
+                                  └───────────────────┬────────────────────┘
+                                                      │
+                                                      ▼
+                       ┌──────────────────────────────────────────────────┐
+                       │  Kubernetes  (k3d local · k3s on a cloud VM)     │
+                       │                                                  │
+                       │  ┌────────────┐    ┌────────────────────────┐    │
+                       │  │ ingress    │───►│  3D GUI (Vite + nginx) │    │
+                       │  │ -nginx     │    │  /api → controller     │    │
+                       │  └────────────┘    └────────────┬───────────┘    │
+                       │                                 │                │
+                       │                       ┌─────────▼──────────┐     │
+                       │                       │  FastAPI Controller│     │
+                       │                       │  /healthz /metrics │     │
+                       │                       │  /ctrl/*  (host)   │     │
+                       │                       │  /k8s/*   (Jobs)   │     │
+                       │                       └─────┬──────────────┘     │
+                       │                             │ creates Jobs       │
+                       │ ┌──────────────────┐  ┌─────▼─────────────────┐  │
+                       │ │ FlexRIC near-RT  │  │  ns-3 sim Job (batch) │  │
+                       │ │ RIC (SCTP 36421) │◄─│  + xApp Job (binary)  │  │
+                       │ └──────────────────┘  │    in FlexRIC image   │  │
+                       │       ▲               └───────────────────────┘  │
+                       │       │ E2/SCTP                                  │
+                       │ ┌─────┴────────┐ ┌──────────────┐ ┌────────────┐ │
+                       │ │ GRU service  │ │ RL service   │ │ Prometheus │ │
+                       │ │ Flask :5000  │ │ Flask :5001  │ │  scrapes   │ │
+                       │ │ +HPA(2-5)    │ │ +HPA(2-5)    │ │  /metrics  │ │
+                       │ └──────────────┘ └──────────────┘ └─────┬──────┘ │
+                       │                                         │        │
+                       │                                  ┌──────▼──────┐ │
+                       │  ┌────────────┐  ┌────────────┐  │  Grafana    │ │
+                       │  │ InfluxDB   │  │ 2D Grafana │  │  (auto-     │ │
+                       │  │ time series│  │ dashboard  │  │  loaded)    │ │
+                       │  └────────────┘  └────────────┘  └─────────────┘ │
+                       └──────────────────────────────────────────────────┘
+                                                ▲
+                                                │ helm upgrade --install
+                                                │
+                       ┌────────────────────────┴────────────────────────┐
+                       │  GitHub Actions: lint · unit-tests · smoke      │
+                       │  build → Docker Hub (mohamed710/*)               │
+                       └─────────────────────────────────────────────────┘
+```
 
-The GRU (Gated Recurrent Unit) model is a deep learning sequence model trained to predict whether a handover will result in a ping-pong (UE returning to source cell within 5 seconds). It is a **binary classifier**:
-- Output 0 → EXECUTE (handover is safe and beneficial)
-- Output 1 → AVOID (handover predicted to cause ping-pong or be unnecessary)
-
-**Input:** Sequence of 10 × 12 feature vectors (10 timesteps, 12 KPM features per timestep)  
-**Output:** Probability of ping-pong, confidence score, estimated Time-of-Stay (ToS)
-
-**Decision thresholds (from config.joblib):**
-- `ToS_th = 1.2s` — minimum time UE is expected to stay in target cell
-- `ToS_unnec_th = 1.35s` — threshold below which handover is considered unnecessary
-- AVOID if: `(is_short AND is_oscillating) OR is_model_predicted_pp OR is_unnecessary`
-
-**Why `indicationPeriodicity=0.05` is critical:**  
-The model was trained on data collected at 0.05s intervals. At higher intervals (e.g., 0.1s), the temporal patterns in the input sequence look different — the model sees slower oscillations and generates near-constant AVOID decisions (99.8% AVOID rate observed at 0.1s). At 0.05s, the model performs as trained, yielding ~1.7% ping-pong rate matching the 2D reference conditions.
+| Component | Image | Port(s) | Role |
+|---|---|---|---|
+| FastAPI Controller | `mohamed710/oran-controller` | `:8001` | Drives sims (host subprocess or K8s Jobs); exposes `/metrics` |
+| 3D GUI | `mohamed710/oran-gui` | `:80` (LB :3001) | Vite + Three.js scene polling controller via nginx `/api` proxy |
+| GRU Service | `mohamed710/xapp-gru-service` | `:5000` | Flask wrapper around the trained Keras model |
+| RL Service | `mohamed710/xapp-rl-service` | `:5001` | Flask wrapper around the DDQN policy network |
+| FlexRIC near-RT RIC | `mohamed710/flexric` | `:36421/sctp`, `:36422/sctp` | E2 termination, xApp lifecycle, RC control |
+| ns-3 mmWave | `mohamed710/ns3-mmwave` | (Job) | The simulator. One Job per simulation run. |
+| InfluxDB | `influxdb:1.8-alpine` | `:8086` | Time-series store for KPM data |
+| Grafana | `grafana/grafana:10.4.2` | `:3000` | Dashboards (pre-loaded "O-RAN platform — overview") |
+| Prometheus | `prom/prometheus:v2.55.1` | `:9090` | Scrapes pods via annotations |
 
 ---
 
-## 5. Ping-Pong Avoidance Logic
+## 3. Repository structure
 
-A **ping-pong handover** occurs when a UE is handed from cell A→B, and then shortly after (<5 seconds) is handed back from B→A. This wastes resources and degrades user experience.
+```
+graduation-project/
+├── platform/                      ← infrastructure + orchestration
+│   ├── controller/                FastAPI orchestrator (host + K8s Jobs)
+│   ├── gui/                       Vite + Three.js 3D GUI
+│   ├── flexric/                   FlexRIC near-RT RIC (vendored, upstream Dockerfile)
+│   │   └── docker/Dockerfile.flexric.ubuntu   ← used by `make image-build-flexric`
+│   ├── ns3-sim/                   ns-3 mmWave-LENA-oran scenarios
+│   │   ├── Dockerfile             our multi-stage build
+│   │   └── mmwave-LENA-oran/      the simulator tree
+│   └── 2d-gui/                    legacy Grafana stack (Docker-only)
+├── xapps/                         ← per-xApp tree (registry pattern)
+│   ├── gru-handover/
+│   │   ├── README.md
+│   │   ├── python-service/        gru_xapp.py + Dockerfile + requirements
+│   │   ├── model/                 handover_model_final.keras
+│   │   ├── artifacts/             scaler.joblib, config.joblib
+│   │   ├── training/              Handover_Optimization.ipynb + predict.py
+│   │   └── dev-scratch/           Yousef's C iteration history
+│   ├── rl-handover/
+│   │   ├── python-service/        rl_xapp.py + agent.py + models/
+│   │   └── training/              train_rl_ns3*.py + Datasets + Results
+│   └── lb-awf/                    placeholder; binary lives in FlexRIC image
+├── charts/oran/                   ← Helm chart (27 K8s resources)
+│   ├── Chart.yaml
+│   ├── values.yaml                xApp registry, FlexRIC, ns-3, observability
+│   └── templates/
+│       ├── controller-*.yaml      Deployment + Service + PVC + RBAC
+│       ├── gui-*.yaml             Deployment + Service + Ingress
+│       ├── xapps.yaml             registry iteration → per-xApp resources
+│       ├── xapp-registry-configmap.yaml   read by the controller at runtime
+│       ├── flexric.yaml           Deployment + SCTP Service
+│       ├── prometheus.yaml        scraper + RBAC
+│       └── grafana*.yaml          Deployment + datasource + dashboard
+├── infra/terraform/aws/           ← cloud reference (single-VM k3s on EC2)
+├── tools/                         ← shell scripts + utilities
+│   ├── gru.sh, rl.sh, kill_sim.sh
+│   ├── start.sh, save_sim_results.sh, launch_gru_system.sh
+│   └── docs-generation/           PDF generators for the thesis
+├── docs/                          ← documentation
+│   ├── ADR/                       6 architecture decision records
+│   ├── CLOUD.md                   AWS reference architecture, cost model
+│   ├── *.pdf                      thesis chapters and guides
+│   ├── MANUAL_COMMANDS.txt
+│   ├── demo/                      live demo HTML
+│   └── yousef-notes/              Yousef's README + screenshots
+├── tests/unit/                    ← pytest tests (18 tests, controller pure functions)
+├── sim-results/                   ← per-run simulation output
+├── .github/workflows/             ← CI: lint + unit-tests + smoke + build
+├── docker-compose.dev.yml         ← local supporting cast (controller, GUI, Influx, Grafana)
+├── pyproject.toml                 ← pytest + ruff config
+├── Makefile                       ← single discoverable entrypoint
+└── .env.example                   ← all env vars documented
+```
 
-**Detection algorithm (per-UE grouping):**
+Run `make help` to see every available command.
+
+---
+
+## 4. The xApps — multi-xApp registry pattern
+
+Each xApp is **one entry** in `charts/oran/values.yaml`:
+
+```yaml
+xapps:
+  gru-handover:
+    enabled: true
+    pythonService:
+      enabled: true
+      image:    { repository: xapp-gru-service, tag: "" }
+      port:     5000
+      replicas: 1
+      autoscaling: { enabled: false, minReplicas: 1, maxReplicas: 5 }
+    cxapp:
+      image:  { repository: "" }   # empty → use FlexRIC image
+      binary: /usr/local/flexric/xApp/c/handover_gru/xapp_handover_gru
+    config:
+      indicationPeriodicity: 0.05
+      cells: 7
+      e2FunctionIdKpm: 2
+```
+
+Helm renders Deployment + Service + (optional) HorizontalPodAutoscaler per entry. The same data is exposed as JSON via a ConfigMap and consumed by the controller's `k8s_client.read_xapp_registry()` to spawn xApp Jobs at runtime.
+
+**Adding a fourth xApp** (e.g. an MPC controller):
+
+1. Add an `mpc-handover:` block under `xapps:` in `values.yaml`.
+2. `make image-build-<your-image> && make image-push`.
+3. `make deploy` — the new xApp is live.
+
+No code changes anywhere else. See [ADR 0001](docs/ADR/0001-multi-xapp-registry-pattern.md) for the full reasoning.
+
+---
+
+## 5. How to run
+
+There are **four ways** to run the platform, depending on what you want to do.
+
+### 5a. Quick start — local Kubernetes (k3d + Helm) — **recommended**
+
+The full DevOps stack on your laptop in 15 minutes (assumes Docker Desktop with WSL/Linux integration is on).
+
+```bash
+# Prereqs (one-time, no sudo needed):
+mkdir -p ~/.local/bin && export PATH=~/.local/bin:$PATH
+curl -sSL https://github.com/k3d-io/k3d/releases/download/v5.7.4/k3d-linux-amd64 \
+  -o ~/.local/bin/k3d && chmod +x ~/.local/bin/k3d
+KUBE=$(curl -sL https://dl.k8s.io/release/stable.txt) && \
+  curl -sLo ~/.local/bin/kubectl https://dl.k8s.io/release/$KUBE/bin/linux/amd64/kubectl && \
+  chmod +x ~/.local/bin/kubectl
+curl -sSL https://get.helm.sh/helm-v3.16.4-linux-amd64.tar.gz | tar xz -C /tmp && \
+  mv /tmp/linux-amd64/helm ~/.local/bin/
+
+# Bring up the platform:
+make k3d-up              # creates k3d cluster `oran-dev`
+make image-build         # 4 light images (controller, gui, gru, rl) — ~5 min
+make k3d-import          # ships local images into the cluster (no registry push)
+make deploy              # helm upgrade --install — 5-10 min on first run
+
+# Verify:
+make k8s-status
+
+# Open the dashboards (port-forwards run in background):
+kubectl port-forward -n oran svc/oran-oran-grafana    3000:3000 &  # admin/admin
+kubectl port-forward -n oran svc/oran-oran-controller 8001:8001 &
+kubectl port-forward -n oran svc/oran-oran-gui        3001:80   &
+kubectl port-forward -n oran svc/oran-oran-prometheus 9090:9090 &
+
+# Now open in browser:
+#   http://localhost:3001    3D O-RAN GUI
+#   http://localhost:3000    Grafana — "O-RAN platform — overview" pre-loaded
+#   http://localhost:9090    Prometheus
+#   http://localhost:8001/healthz   /readyz   /metrics   /k8s/health   /k8s/xapps
+
+# Launch a (demo-mode) simulation Job pair:
+curl -sS -X POST http://localhost:8001/k8s/sim/launch \
+    -H 'Content-Type: application/json' \
+    -d '{"scenario":"gru_scenario","xapp_id":"gru-handover","sim_time":60}'
+
+# Watch the Jobs run to completion (~45s in demo mode):
+kubectl get jobs -n oran -w
+```
+
+When you're done:
+
+```bash
+make undeploy            # helm uninstall
+make k3d-down            # delete the cluster
+```
+
+> **Demo mode:** the chart ships with `K8S_DEMO_MODE=true`, which makes the controller create busybox-stub Jobs that *log what they would do* and exit cleanly in 45 seconds. Switch to real ns-3 + FlexRIC by building the heavy images (Section 6) and setting `--set controller.env.K8S_DEMO_MODE=false`. See [ADR 0005](docs/ADR/0005-k8s-demo-mode.md).
+
+### 5b. Local dev — Docker Compose
+
+For iterating on the controller / GUI / Python services without standing up a cluster.
+
+```bash
+make compose-up-detach   # build + start: controller, gui, gru-service, rl-service, influxdb, grafana
+make compose-logs        # tail
+make compose-down        # stop + remove
+```
+
+Endpoints:
+
+- http://localhost:3001 — 3D GUI
+- http://localhost:8001/healthz, `/metrics`, `/ctrl/status` — controller
+- http://localhost:3000 — Grafana (admin/admin, no dashboards in compose mode)
+- http://localhost:8086 — InfluxDB ping
+
+> The controller's `/k8s/*` endpoints will report `available: false` in compose mode (no cluster). Use `/ctrl/*` or switch to k3d.
+
+### 5c. Native host mode (for real ns-3 runs)
+
+The original way, before everything was containerized. Useful when you're debugging FlexRIC or the C xApps natively.
+
+```bash
+make install             # venv + Python deps + npm install
+make build-info          # prints the FlexRIC + ns-3 build recipe (run once)
+# ... build FlexRIC + ns-3 per the recipe (30-60 min combined) ...
+
+# Then either:
+make controller          # terminal A — FastAPI on :8001
+make gui                 # terminal B — Vite on :3001
+
+# Or use the legacy launchers:
+make up SCENARIO=gru SIM_TIME=60 N_UES=20 N_CELLS=7
+make up SCENARIO=rl SIM_TIME=60 N_UES=20 N_CELLS=7
+make down                # kills everything
+```
+
+`make doctor` triages what's missing.
+
+### 5d. AWS cloud reference
+
+A single-VM k3s deployment of the full stack. **Validated, not yet applied** (real money). See [docs/CLOUD.md](docs/CLOUD.md) for the topology, cost model, and rationale.
+
+```bash
+# Prereqs (one-time):
+aws configure
+aws ec2 create-key-pair --key-name oran-demo --query KeyMaterial \
+    --output text > ~/.ssh/oran-demo.pem
+chmod 400 ~/.ssh/oran-demo.pem
+
+# Apply:
+make tf-init
+TF_VAR_key_name=oran-demo \
+TF_VAR_operator_cidr=$(curl -s https://ifconfig.me)/32 \
+TF_VAR_use_spot=true \
+TF_VAR_auto_shutdown_minutes=240 \
+make tf-apply
+
+# 7-10 min later:
+ssh ubuntu@$(cd infra/terraform/aws && terraform output -raw public_ip)
+# Then on the host: cd /opt/oran && helm install oran charts/oran -n oran --create-namespace
+
+# Tear down (returns to $0):
+make tf-destroy
+```
+
+Cost: **~$2 for a 6-hour defense-day session** with Spot pricing and auto-shutdown. ~$10/mo for weekly iteration. Multi-AZ EKS would be wasteful for this workload (see [docs/CLOUD.md § Why not multi-AZ EKS](docs/CLOUD.md#why-not-multi-az-eks)).
+
+---
+
+## 6. Building the heavy images (FlexRIC + ns-3)
+
+These are the only "real" simulator images. Builds are slow:
+
+| Image | First build | Size | Recipe |
+|---|---|---|---|
+| `mohamed710/flexric:dev` | ~30 min | ~2 GB | upstream multi-stage build at `platform/flexric/docker/Dockerfile.flexric.ubuntu` |
+| `mohamed710/ns3-mmwave:dev` | ~30-60 min | ~3-4 GB | `platform/ns3-sim/Dockerfile` — builds e2sim-kpmv3 + ns-3 + scenarios |
+
+```bash
+# Both, sequentially (recommended on a 16 vCPU / 32 GB machine):
+make image-build-heavy
+
+# Or one at a time:
+make image-build-flexric
+make image-build-ns3
+
+# Then use them in the cluster:
+make k3d-import          # ships local images into k3d
+helm upgrade oran charts/oran -n oran \
+    --set controller.env.K8S_DEMO_MODE=false   # flip to real mode
+```
+
+The FlexRIC image bakes **every C xApp** (handover_gru, handover_rl, lb_awf, plus Yousef's new `orange/xapp_es_with_cell_util*` and `orange/LB`) into the same image at `/usr/local/flexric/xApp/c/<id>/`. xApp Jobs reuse this image and just override the entrypoint. See [ADR 0003](docs/ADR/0003-single-flexric-image.md).
+
+---
+
+## 7. Testing
+
+```bash
+# Unit tests — controller pure functions (18 tests):
+make test
+make test-cov            # with coverage
+
+# Local Helm validation (offline, no cluster):
+make helm-lint           # lint + dry-render
+make helm-template       # full rendered output
+
+# Smoke test (requires Docker + k3d):
+# This is what runs in CI on every PR.
+make k3d-up && make image-build && make k3d-import
+make deploy
+curl -sS -X POST http://localhost:8001/k8s/sim/launch \
+    -d '{"scenario":"gru_scenario","xapp_id":"gru-handover","sim_time":60}'
+kubectl wait --for=condition=complete -n oran job/sim-r<id> --timeout=120s
+```
+
+The unit tests caught a real bug during Phase 5 — `_build_decision_log` used `defaultdict` without importing it at module level. Fixed in commit history.
+
+---
+
+## 8. Observability
+
+The controller exposes Prometheus metrics at `/metrics`:
+
+```
+oran_simulations_total{xapp,scenario}     completed sims, by xapp + scenario
+oran_handovers_total{xapp,result}         handover events (success | pingpong)
+oran_pingpong_rate_pct{xapp}              from latest sim
+oran_decision_accuracy_pct{xapp}          from latest sim
+oran_e2_connections                       live count (from `ss -anp ESTAB :36421`)
+oran_component_up{component}              1/0 per docker, flexric, simulation, pusher, xapp
+oran_decision_latency_seconds_bucket{xapp}   histogram
+```
+
+Prometheus discovers the controller via the `prometheus.io/scrape: "true"` annotation on the pod. Grafana auto-loads the **`O-RAN platform — overview`** dashboard from the chart's ConfigMap with panels for component health, ping-pong rate, decision accuracy, handovers/min, and decision latency heatmap.
+
+`/healthz` (liveness) and `/readyz` (readiness — checks for FlexRIC/ns-3 binaries on disk) round out the probe surface.
+
+---
+
+## 9. CI/CD
+
+Four GitHub Actions workflows fire on every PR + push to `main`:
+
+| Workflow | What it does | Typical runtime |
+|---|---|---|
+| **`lint.yml`** | ruff (Python), shellcheck, hadolint, yamllint, Vite build smoke | 2-3 min |
+| **`unit-tests.yml`** | `pytest tests/unit/` with coverage report | 1-2 min |
+| **`smoke.yml`** | Spins up k3d in CI, deploys the chart, hits `/k8s/sim/launch`, asserts demo Jobs reach Complete with the expected log content | 6-10 min |
+| **`build.yml`** | Matrix builds + pushes 4 images to Docker Hub on `main` and on tags | 5-8 min |
+
+Add `DOCKERHUB_TOKEN` to the repo secrets to enable `build.yml`'s push step. Without it, builds run but skip push.
+
+---
+
+## 10. Architecture Decision Records
+
+Six short markdown docs in [`docs/ADR/`](docs/ADR/) capture the *why* behind every significant architectural choice:
+
+| # | Title | One-line justification |
+|---|---|---|
+| [0001](docs/ADR/0001-multi-xapp-registry-pattern.md) | Multi-xApp registry pattern | Adding xApp N = one entry in `values.yaml` + `docker push`. Zero code changes. |
+| [0002](docs/ADR/0002-ns3-simulation-as-k8s-job.md) | ns-3 sim as a K8s Job | Defined end + single-process → matches Job semantics, not Deployment. |
+| [0003](docs/ADR/0003-single-flexric-image.md) | Single FlexRIC image, override per xApp | Build once, deploy three ways. Image storage, build time, update flow all win. |
+| [0004](docs/ADR/0004-dual-mode-controller.md) | Dual-mode controller (host + K8s) | Demo-day fallback: K8s → host → recorded results. |
+| [0005](docs/ADR/0005-k8s-demo-mode.md) | `K8S_DEMO_MODE` for orchestration verification | Verified the K8s control loop without waiting for the heavy ns-3/FlexRIC builds. |
+| [0006](docs/ADR/0006-path-portability-via-project-root.md) | Path portability via `PROJECT_ROOT` | One env var = no hardcoded paths anywhere. Foundation for everything else. |
+
+Suggested reading order for the defense committee: **0006 → 0001 → 0003 → 0002 → 0004 → 0005**.
+
+---
+
+## 11. GRU model — handover optimization
+
+| Property | Value |
+|---|---|
+| Architecture | 2-layer GRU (128 → 64) → Dense(128, relu) → Dropout(0.3) → ToS head + 3-class softmax head |
+| Input shape | 10 timesteps × 12 features |
+| Features | Level (RSRP), Qual (RSRQ), SNR, CQI, SecondCell_RSRP, SecondCell_SNR, NRxLev1, NQual1, Speed, DL_bitrate, UL_bitrate, BANDWIDTH |
+| Decision | EXECUTE (probability-of-pingpong < threshold) or AVOID |
+| Threshold | `ToS_th = 1.2 s`, `ToS_unnec_th = 1.35 s` (in `Fares/artifacts/config.joblib`) |
+| Indication interval | **0.05 s** — must match training; at 0.1 s the model saturates to 99.8 % AVOID |
+| Inference path | C xApp posts JSON to `http://gru-service:5000/predict`, gets `{decision, confidence, ToS}` back |
+
+The training notebook is in [`xapps/gru-handover/training/Handover_Optimization.ipynb`](xapps/gru-handover/training/Handover_Optimization.ipynb).
+
+---
+
+## 12. Ping-pong avoidance logic
+
+A **ping-pong handover** = a UE goes A→B and then B→A within 5 simulated seconds. It wastes resources and degrades QoS.
+
 ```python
-from collections import defaultdict
-
+# Per-UE grouping is critical — see the regression test.
 ue_history = defaultdict(list)
 for r in executed_handovers:
     ue_history[r['ue_id']].append((time, from_cell, to_cell))
 
-ping_pong_count = 0
-for ue, handovers in ue_history.items():
-    for i in range(1, len(handovers)):
-        prev_time, prev_from, prev_to = handovers[i-1]
-        curr_time, curr_from, curr_to = handovers[i]
-        # Ping-pong: same UE, reversed direction, within 5 seconds
+ping_pong = 0
+for ue, hovers in ue_history.items():
+    for i in range(1, len(hovers)):
+        prev_t, prev_from, prev_to = hovers[i-1]
+        curr_t, curr_from, curr_to = hovers[i]
         if (curr_to == prev_from and curr_from == prev_to
-                and (curr_time - prev_time) <= 5.0):
-            ping_pong_count += 1
+                and (curr_t - prev_t) <= 5.0):
+            ping_pong += 1
 ```
 
-**Important:** The detection must group handovers **per UE first**, then check consecutive entries within each UE. A global sequential scan misses ping-pongs when handovers from different UEs interleave in the CSV file — this was a bug found and fixed during this project.
+A naive global sequential scan (the original implementation) misses ping-pongs when handovers from different UEs interleave in the CSV. The fix is in `controller._calc_pingpong` and is regression-tested in [`tests/unit/test_calc_pingpong.py::test_interleaved_handovers_are_grouped_per_ue`](tests/unit/test_calc_pingpong.py).
 
 ---
 
-## 6. 3D GUI — Deep Dive
-
-**Entry point:** `5g-gui-v2/index.html`  
-**Main logic:** `5g-gui-v2/src/main.js`  
-**Styles:** inline CSS in `index.html`  
-**Build tool:** Vite  
-
-The 3D GUI is built as a single-page application using Three.js for 3D rendering and native JavaScript for UI and API communication.
-
-**3D scene elements:**
-- **Ground plane** — dark hexagonal grid representing the network coverage area
-- **Cell towers** — 7–8 glowing vertical towers, each with:
-  - A pulsing sphere whose radius represents signal coverage
-  - Color coding: `#00ff88` (low load) → `#ffaa00` (medium) → `#ff3333` (high)
-  - Cell ID label
-- **UE nodes** — 20 moving dots with trails, color-coded by SINR
-- **Handover beams** — brief animated lines connecting source and target cells when a handover occurs
-- **Scan line effect** — retro CRT-style overlay for visual aesthetics
-
-**API polling (every 1 second):**
-```javascript
-// Fetches from http://localhost:8001/ctrl/network-state
-{
-  cells: [{ id, load, ues_connected, throughput, latency, sinr, position }],
-  ues:   [{ id, cell_id, sinr, position }],
-  handovers: [{ time, ue_id, from_cell, to_cell }]
-}
-```
-
-**Control panel actions:**
-- Each system card (Docker, FlexRIC, Simulation, Pusher, xApp) has individual START/STOP buttons
-- Status dots update in real time: grey (stopped) → orange (starting) → green (running)
-- LAUNCH ALL button triggers the full orchestrated sequence via `/ctrl/launch-all`
-
-**Bottom bar:**
-- **UE · SINR · dB strip** — real-time per-UE SINR bars (green = strong signal, red = weak)
-- **Energy track** — cumulative energy consumption indicator
-- **Scenario label** — shows current scenario name, cell count, UE count
-
----
-
-## 7. Simulation Results
-
-All results are auto-saved to `3D_GUI_Sim_Results/` in numbered folders.
-
-### GRU Scenario Results
-
-| Sim | Date | Handovers | Ping-pong | Rate | indicationPeriodicity | Notes |
-|---|---|---|---|---|---|---|
-| sim001 | 2026-05-02 | — | — | — | 1.5 | Early test run |
-| sim002 | 2026-05-02 | — | — | — | 1.5 | Parameter tuning |
-| sim003 | 2026-05-03 | — | — | — | 0.1 | Too conservative (99.8% AVOID) |
-| sim004 | 2026-05-03 | 88 | 0 | 0.0% | 0.1 | GRU barely triggering |
-| sim005 | 2026-05-03 | ~26 | — | — | 0.1 | Near-zero execution |
-| **sim006** | **2026-05-03** | **174** | **3** | **1.72%** | **0.05** | **Clean reference run** |
-
-**2D GUI reference result (baseline):** 334 handovers, 2.1% ping-pong @ indicationPeriodicity=0.05
-
-**sim006 is the first valid 3D run** matching the 2D reference conditions. The key fix was changing `indicationPeriodicity` from 0.1 to 0.05 to match training conditions.
-
-### Result Folder Contents
-
-Each `sim###_TIMESTAMP_SCENARIO/` folder contains:
-
-```
-sim006_20260503_121100_gru_scenario/
-├── handover.csv          — raw handover events (time_sec, ue_id, from_cell, to_cell, event, executed_ok)
-├── decision_log.csv      — UUID per handover + is_correct flag
-├── decision_summary.json — accuracy %, ping-pong rate, counts
-├── summary.txt           — human-readable summary
-├── lstm_features.csv     — GRU feature vectors used per decision
-├── plots/
-│   ├── decision_quality.png      — scatter plot: green=correct, red X=ping-pong
-│   └── handovers_over_time.png   — cumulative handover curve with ping-pong markers
-├── flexric.log           — FlexRIC E2 activity during this sim
-├── simulation.log        — ns-3 MAC-layer output (large)
-├── xapp.log              — per-UE decision cycle output (large)
-├── gru.log               — GRU Python service inference log
-└── pusher.log            — InfluxDB data push log
-```
-
----
-
-## 8. Decision Log & SQLite Database
-
-Every simulation appends its handover decisions to a persistent SQLite database:
-
-**DB path:** `sim_decisions.db`  
-**Table:** `decisions`
-
-| Column | Type | Description |
-|---|---|---|
-| `uuid` | TEXT | Unique ID per handover |
-| `sim` | TEXT | Simulation label (e.g., sim006) |
-| `time_sec` | REAL | Simulation time of the handover |
-| `ue_id` | TEXT | UE identifier |
-| `from_cell` | TEXT | Source cell |
-| `to_cell` | TEXT | Target cell |
-| `is_correct` | INTEGER | 1 if not followed by ping-pong within 5s |
-
-**Query via API (while controller is running):**
-```bash
-curl http://localhost:8001/ctrl/decisions               # all decisions
-curl "http://localhost:8001/ctrl/decisions?sim=sim006"  # filter by sim
-curl http://localhost:8001/ctrl/last-result             # latest run summary
-```
-
----
-
-## 9. Repository Structure
-
-```
-open-ran-clean/
-├── gru.sh                          ← One-command launcher (use this after every reboot)
-├── MANUAL_COMMANDS.txt             ← Full manual reference for every command
-├── sim_decisions.db                ← SQLite: all handover decisions across all sims
-├── README.md                       ← This file
-│
-├── 5g-gui-v2/                      ← 3D Command Center GUI
-│   ├── index.html                  ← Single-page app entry point
-│   ├── src/
-│   │   └── main.js                 ← Three.js rendering + API polling + UI logic
-│   ├── controller.py               ← FastAPI controller (port 8001)
-│   ├── package.json                ← Vite + dependencies
-│   └── vite.config.js
-│
-├── 3D_GUI_Sim_Results/             ← Auto-saved simulation results
-│   ├── sim001_*/
-│   ├── sim002_*/
-│   ├── sim003_*/
-│   ├── sim004_*/
-│   ├── sim005_*/
-│   └── sim006_*/                   ← Latest clean run (indicationPeriodicity=0.05)
-│
-├── Fares/                          ← GRU model assets
-│   ├── model/
-│   │   └── handover_model_final.keras
-│   ├── artifacts/
-│   │   ├── scaler.joblib
-│   │   └── config.joblib
-│   ├── Handover_Optimization.ipynb ← Training notebook
-│   ├── predict.py
-│   └── requirements.txt
-│
-├── load balancing/                 ← LB xApp source + docs + results
-│   ├── load_balancing_scenario.cc
-│   ├── xapp_lb.c
-│   ├── SIMULATION_DOCUMENTATION.md ← Detailed LB sim history (sim001-sim008)
-│   └── sim_results/
-│
-└── yousef_fathy/                   ← Core simulation stack
-    ├── flexric/                    ← FlexRIC nearRT-RIC
-    │   ├── flexric.conf
-    │   └── examples/xApp/c/
-    │       ├── handover_gru/       ← GRU C xApp source
-    │       └── lb_awf/             ← LB C xApp source
-    ├── ns-O-RAN-flexric/
-    │   └── mmwave-LENA-oran/
-    │       ├── scratch/
-    │       │   ├── gru_scenario.cc
-    │       │   └── load_balancing_scenario.cc
-    │       ├── sim_data_pusher.py
-    │       └── GUI/                ← 2D Grafana GUI (Docker)
-    │           └── docker-compose.yml
-    └── HANDOVER_xApp_Test/
-        └── gru_xapp.py             ← GRU Python prediction service (port 5000)
-```
-
----
-
-## 10. How to Run
-
-### Prerequisites
-
-- Ubuntu 20.04 / 22.04
-- Python 3.10+
-- Node.js 18+
-- Docker + Docker Compose
-- FlexRIC and ns-3 compiled (see `yousef_fathy/flexric/` and `yousef_fathy/ns-O-RAN-flexric/`)
-
-### One-Command Launch (Recommended)
-
-```bash
-bash /home/omar_farouk/open-ran-clean/gru.sh
-```
-
-This single command:
-1. Kills all stale processes from any previous run
-2. Clears `/tmp/flexric.log`
-3. Starts Docker (InfluxDB + 2D backend on port 8000)
-4. Starts the 3D controller (port 8001)
-5. Starts the 3D frontend (port 3001)
-6. Triggers LAUNCH ALL via the controller API
-
-With custom parameters:
-```bash
-bash gru.sh [simTime] [nUEs] [nCells]
-bash gru.sh 60           # 60s sim, default UEs=20, cells=7
-bash gru.sh 100 30 8     # 100s sim, 30 UEs, 8 cells
-```
-
-Then open your browser:
-- **3D GUI** → http://localhost:3001
-- **2D GUI** → http://localhost:8000
-
-### Using the 3D GUI Instead
-
-If you want to set parameters from the browser instead of the command line, run the infrastructure manually (without auto-launch) and then press LAUNCH ALL in the browser:
-
-```bash
-# Kill stale processes
-pkill -9 -f 'nearRT-RIC'; pkill -9 -f 'ns3\.42'; pkill -9 -f 'xapp_handover_gru'
-pkill -9 -f 'sim_data_pusher'; pkill -9 -f 'gru_xapp\.py'
-> /tmp/flexric.log
-
-# Start Docker
-cd yousef_fathy/ns-O-RAN-flexric/mmwave-LENA-oran/GUI
-docker compose up -d influxdb gui
-
-# Start controller
-cd 5g-gui-v2
-python3 -m uvicorn controller:app --host 0.0.0.0 --port 8001 --log-level warning &
-
-# Start frontend
-npm run dev &
-
-# Open browser, set parameters, press LAUNCH ALL
-# http://localhost:3001
-```
-
----
-
-## 11. Manual Step-by-Step
-
-For the full manual terminal commands (every step explained), see:
-
-**`MANUAL_COMMANDS.txt`** — covers:
-- Kill all processes
-- Start each component individually
-- GRU scenario (Option C)
-- Load Balancing scenario (Option D)
-- Status checks
-- Ping-pong recalculation
-- Troubleshooting
-
----
-
-## 12. Troubleshooting
-
-### xApp prints "Insufficient samples 1/2" — 0 handovers
-**Cause:** xApp started too late (>60s after simulation began), not enough KPM samples accumulated.  
-**Fix:** Always do Step 0 (kill all), clear `/tmp/flexric.log`, and wait for N E2 SETUP-REQUESTs before starting the xApp.
-
-### FlexRIC crashes — "assertion sr->len_e2_nodes_conn > 0 failed"
-**Cause:** A stale xApp from a previous crashed run reconnected to FlexRIC before ns-3 did, confusing the E2 state.  
-**Fix:** `pkill -9` everything before every new run. Never skip the kill step.
-
-### GRU xApp makes 0 handovers even though it started on time
-**Cause:** `gru_xapp.py` is not running on port 5000, or `LSTM_SERVICE_URL` environment variable is not set.  
-**Fix:** Start `gru_xapp.py` first, verify with `curl http://localhost:5000/health`, then start the C xApp.
-
-### FlexRIC shows 0 E2 SETUP-REQUESTs forever
-**Cause:** Reading the wrong log file. FlexRIC ONLY writes to `/tmp/flexric.log`.  
-**Fix:** `grep -c "E2 SETUP-REQUEST" /tmp/flexric.log` — not `farouk_flexric.log`.
-
-### ns-3 or FlexRIC won't start — "address already in use"
-**Cause:** Previous run left zombie processes on SCTP port 36421.  
-**Fix:** Run all `pkill` commands from the kill step.
-
-### Ping-pong rate is 0.0% but it should not be
-**Cause:** Sequential scan bug — comparing consecutive rows globally instead of per-UE.  
-**Fix:** Always group handovers by `ue_id` before checking A→B→A reversals within 5 seconds. See `controller.py:_calc_pingpong`.
-
----
-
-## 13. Key Parameters Reference
+## 13. Key parameters reference
 
 | Parameter | Value | Where set | Why this value |
 |---|---|---|---|
-| `indicationPeriodicity` (GRU) | **0.05** | `controller.py` | Matches GRU model training conditions |
-| `indicationPeriodicity` (LB) | **1.5** | `controller.py` | LB only needs aggregate stats |
-| `simTime` | 60 | `gru.sh`, `controller.py`, `index.html` | ~3 hours wall-clock per 60 sim-seconds |
-| `N_Ues` | 20 | all configs | Reference scenario spec |
-| `N_MmWaveEnbNodes` | 7 (GRU) / 8 (LB) | all configs | Reference scenario spec |
-| `hoSinrDifference` | 3 dB | `controller.py` | A3 event trigger threshold |
-| `GRU_PORT` | 5000 | `controller.py` | Flask prediction service port |
-| Controller port | 8001 | `gru.sh`, `controller.py` | 3D GUI backend |
-| Frontend port | 3001 | `vite.config.js` | 3D GUI browser |
-| 2D GUI port | 8000 | Docker Compose | Grafana dashboard |
-| Ping-pong window | 5.0s | `controller.py` | Standard 3GPP ping-pong definition |
-| GRU cooldown | varies | `config.joblib` | Per-UE post-handover lockout |
-| E2 SETUP-REQUEST target | 7 (GRU) / 8 (LB) | `controller.py` | One per mmWave cell |
-| FlexRIC SCTP port | 36421 | `flexric.conf` | Standard E2 interface port |
+| `indicationPeriodicity` (GRU) | **0.05 s** | controller env / values.yaml | Matches GRU training conditions |
+| `indicationPeriodicity` (LB) | **1.5 s** | values.yaml lb-awf | LB only needs aggregate stats |
+| `simTime` | 60 s | `make up SIM_TIME=…` | ~3 hours wall-clock per 60 sim-seconds |
+| `N_Ues` | 20 | values.yaml + `make up N_UES=…` | Reference scenario spec |
+| `N_MmWaveEnbNodes` | 7 (GRU) / 8 (LB) | values.yaml per-xApp | Reference scenario spec |
+| `hoSinrDifference` | 3 dB | values.yaml per-xApp | A3 event trigger threshold |
+| `GRU_PORT` / `RL_PORT` | 5000 / 5001 | env / values.yaml | Flask service ports |
+| Controller port | 8001 | controller / chart | host + K8s |
+| Frontend port | 3001 → 80 | vite / chart | dev → container |
+| Grafana / Prometheus | 3000 / 9090 | chart | standard upstream |
+| Ping-pong window | 5.0 s | controller `_calc_pingpong` | 3GPP standard ping-pong definition |
+| FlexRIC SCTP E2 / E42 | 36421 / 36422 | flexric.conf + chart | E2AP standard |
+| K3D cluster name | `oran-dev` | Makefile var | Override with `K3D_CLUSTER=…` |
+| Helm release / namespace | `oran` / `oran` | Makefile var | Override with `HELM_RELEASE=…`, `HELM_NS=…` |
 
 ---
 
-## 14. Technical Notes & Lessons Learned
+## 14. Troubleshooting
 
-### SCTP vs TCP
-FlexRIC uses **SCTP** (not TCP) for the E2 interface on port 36421. Standard port checkers like `ss -tlnp` won't show it. Use `ss -anp | grep 36421` or `ss -Scnp` to verify the port is open.
+### `make compose-up` fails with `exec format error: docker-credential-desktop.exe`
 
-### Why the GRU only saw AVOID at indicationPeriodicity=0.1
-At 0.1s intervals, the GRU sees the same underlying signal dynamics as at 0.05s, but with half the temporal resolution. The 10-timestep window now covers 1.0s of history instead of 0.5s. The model was trained to see fast oscillation patterns at 0.05s resolution — at 0.1s those patterns look smoother and the model interprets them as oscillation risk, triggering 99.8% AVOID. This was the root cause of the near-zero handover rates in sim003–sim005.
+WSL can't invoke the Windows-side cred helper. Patch `~/.docker/config.json`:
 
-### Two indicationPeriodicity locations in controller.py
-The parameter appears in TWO separate places — one in `start_simulation()` (manual start) and one in `_launch_all_task()` (automatic launch). Both must always be set to the same value. This caused inconsistent behavior early in development.
+```bash
+echo '{"auths":{"https://index.docker.io/v1/":{}}}' > ~/.docker/config.json
+```
 
-### Ping-pong calculation bug
-The initial `_calc_pingpong` implementation compared consecutive rows in the global CSV. When UE 5 did A→B at t=10s, UE 8 did something at t=11s, then UE 5 did B→A at t=12s — the two UE 5 rows were not adjacent, so the ping-pong was missed. The fix groups by `ue_id` first. This caused sim006 to incorrectly report 0.0% ping-pong before the fix.
+### `helm upgrade --install` times out at `--wait`
 
-### Wall clock vs simulation time
-60 simulation-seconds takes approximately **3 hours** of wall-clock time on this hardware. This is because each 0.05s KPM reporting cycle involves ns-3 computing channel conditions, SINR, and MAC allocations for 20 UEs across 8 cells simultaneously.
+Either an image is failing to pull (`kubectl describe pod` to confirm) or the controller's `/readyz` is reporting 503 because FlexRIC/ns-3 binaries don't exist *inside the container*. The chart's `readinessProbe` for the controller in cluster uses `/healthz`, not `/readyz`, exactly to avoid this — confirm by checking [charts/oran/templates/controller-deployment.yaml](charts/oran/templates/controller-deployment.yaml).
 
-### FlexRIC log must be cleared between runs
-If `/tmp/flexric.log` is not cleared before a new run, the E2 SETUP-REQUEST count includes entries from the previous run, causing the controller to think all E2 connections are already up and starting the xApp too early.
+### xApp pod `ImagePullBackOff` on `mohamed710/xapp-*`
+
+You haven't run `make image-build && make k3d-import` yet, OR you're in real mode with the heavy images not built. Either build them (Section 6) or stay in `K8S_DEMO_MODE=true`.
+
+### Prometheus shows the controller target as `up` but no `oran_*` metrics
+
+The controller's `/metrics` is self-refreshing — every scrape recalculates the gauges. Confirm the scrape worked:
+
+```bash
+curl http://localhost:8001/metrics | grep oran_
+```
+
+If empty, the controller hasn't completed boot. Check `kubectl logs deploy/oran-oran-controller`.
+
+### Component label collision in Grafana panels (`controller / controller / controller / controller / controller`)
+
+Fixed in [charts/oran/templates/prometheus.yaml](charts/oran/templates/prometheus.yaml) — the relabel uses `pod_component` instead of overwriting the metric's own `component` label. If you regress this, ping-pong/accuracy panels will show the same value for every component.
+
+### `xApp prints "Insufficient samples 1/2" — 0 handovers` (host mode)
+
+The xApp started too late (>60s after sim began), not enough KPM samples accumulated. Always do `make down` before re-running, ensure `/tmp/flexric.log` is empty, and wait for `N` E2 SETUP-REQUESTs in the FlexRIC log before letting the xApp connect.
+
+### `FlexRIC crashes — "assertion sr->len_e2_nodes_conn > 0 failed"` (host mode)
+
+A stale xApp from a previous crashed run reconnected before ns-3 did. `make down` (which kills everything) before every new run.
+
+### `make doctor` reports GRU model MISSING
+
+Fares' model files should live at `xapps/gru-handover/{model,artifacts}/`. If they're missing on a fresh clone, see the historical Fares submodule path or `cp` from a backup checkout.
+
+### `git status` shows ~16,000 changed files after first push prep
+
+Most of those are restructure renames git hasn't been told about yet (every file under `yousef_fathy/...` was moved to `platform/...`). Two strategies:
+
+```bash
+# A) One commit covering everything (fastest):
+git add -A && git commit -m "DevOps platform: restructure + Helm + K8s + observability + ADRs + cloud"
+
+# B) Logical commits (better history for the defense):
+git add platform/ tools/ docs/yousef-notes/ Makefile && git commit -m "Repo restructure"
+git add charts/ && git commit -m "Helm chart with multi-xApp registry"
+git add platform/controller/ && git commit -m "Controller K8s API integration"
+git add tests/ pyproject.toml && git commit -m "Unit tests + pytest config"
+git add .github/ && git commit -m "CI workflows"
+git add docs/ADR/ && git commit -m "Architecture Decision Records"
+git add docs/CLOUD.md infra/ && git commit -m "AWS Terraform reference"
+```
+
+Review `git status | head -50` before any `git add -A`.
 
 ---
 
-*Built with ❤️ — Omar Farouk*
+## 15. Team
+
+| Role | Owner | Owns |
+|---|---|---|
+| **DevOps / Integrator** | Mohamed Moustafa <mhmdmstfa710@gmail.com> | `platform/controller/`, `platform/gui/`, `charts/oran/`, `infra/`, `Makefile`, CI workflows, ADRs |
+| **GRU model** | Fares Esmail | `xapps/gru-handover/{model,artifacts,training}/` — the Keras handover optimization model |
+| **FlexRIC + ns-3 stack** | Yousef Fathy | `platform/flexric/`, `platform/ns3-sim/`, the C xApps under `examples/xApp/c/{handover_gru,handover_rl,lb_awf,orange}/`, the original `HANDOVER_xApp_Test/` source tree |
+| **RL xApp** | Omar Salama | `xapps/rl-handover/{python-service,training}/` — DDQN handover policy network |
+
+---
+
+## 16. Acknowledgements
+
+- **Orange Research Initiative** — sponsorship and the O-RAN research direction.
+- **OpenAirInterface FlexRIC** — the near-RT RIC implementation we vendor at `platform/flexric/`.
+- **ns-3 Consortium + mmWave-LENA-oran fork** — the simulator core and 5G mmWave model.
+- **OSC (O-RAN Software Community)** — KPM v3 and RC v1 service models.
+- The team listed above for the AI components and the original platform integration.
+
+---
+
+**License:** This project is a graduation deliverable. Component licenses follow upstream:
+FlexRIC (OAI Public License 1.1), ns-3 (GNU GPLv2), Three.js (MIT). For the Orange-funded
+contributions in this repo, contact the maintainer for licensing terms.

@@ -1,0 +1,148 @@
+name: smoke
+
+# End-to-end: spin up k3d in CI, build the light images, deploy the chart,
+# launch a demo sim via the controller's /k8s/sim/launch endpoint, and
+# assert that both Jobs reach Completed and emit the expected log lines.
+#
+# Heavy images (FlexRIC + ns-3) and ML services (gru, rl) are disabled in
+# this run — proving the orchestration loop, not the simulation payload.
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+concurrency:
+  group: smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: k3d + helm + /k8s/sim/launch e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.16.4
+
+      - uses: azure/setup-kubectl@v4
+        with:
+          version: v1.30.4
+
+      - name: Install k3d
+        run: |
+          curl -sSL https://github.com/k3d-io/k3d/releases/download/v5.7.4/k3d-linux-amd64 \
+            -o /usr/local/bin/k3d
+          chmod +x /usr/local/bin/k3d
+          k3d version
+
+      - name: Create k3d cluster
+        run: |
+          k3d cluster create smoke \
+            --agents 1 \
+            --k3s-arg "--disable=traefik@server:0" \
+            --wait
+          kubectl cluster-info
+
+      - name: Build light images
+        run: |
+          docker build \
+            -f platform/controller/Dockerfile \
+            -t mohamed710/oran-controller:dev \
+            platform/controller
+          docker build \
+            -f platform/gui/Dockerfile \
+            -t mohamed710/oran-gui:dev \
+            platform/gui
+
+      - name: Import images into k3d
+        run: |
+          k3d image import mohamed710/oran-controller:dev -c smoke
+          k3d image import mohamed710/oran-gui:dev        -c smoke
+
+      - name: Helm install (light profile)
+        # Disable everything that needs unbuilt images:
+        #   FlexRIC, ns-3, both xApp Python services, Prometheus, Grafana.
+        # The controller + GUI + xApp registry ConfigMap are enough to
+        # exercise /k8s/sim/launch in demo mode.
+        run: |
+          helm upgrade --install oran charts/oran \
+            --namespace oran --create-namespace \
+            --wait --timeout 10m \
+            --set flexric.enabled=false \
+            --set prometheus.enabled=false \
+            --set grafana.enabled=false \
+            --set xapps.gru-handover.pythonService.enabled=false \
+            --set xapps.rl-handover.pythonService.enabled=false \
+            --set gui.replicas=1
+          kubectl get pods -n oran
+
+      - name: Port-forward controller
+        run: |
+          kubectl port-forward -n oran svc/oran-oran-controller 8001:8001 \
+            > /tmp/pf.log 2>&1 &
+          # Wait until the forward is actually listening.
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:8001/healthz >/dev/null 2>&1; then
+              echo "controller ready"; exit 0
+            fi
+            sleep 1
+          done
+          echo "controller never became reachable"
+          cat /tmp/pf.log
+          kubectl get pods -n oran -o wide
+          kubectl logs -n oran deploy/oran-oran-controller || true
+          exit 1
+
+      - name: Smoke checks — health + registry + metrics
+        run: |
+          curl -fsS http://localhost:8001/healthz
+          echo
+          curl -fsS http://localhost:8001/k8s/health | tee /tmp/k8s-health.json
+          test "$(jq -r .available /tmp/k8s-health.json)" = "true"
+          test "$(jq -r .in_cluster /tmp/k8s-health.json)" = "true"
+
+          XAPPS=$(curl -fsS http://localhost:8001/k8s/xapps | jq -r 'keys | join(",")')
+          echo "registered xapps: $XAPPS"
+          echo "$XAPPS" | grep -q "gru-handover"
+
+          curl -fsS http://localhost:8001/metrics | grep -E '^oran_' | head
+
+      - name: Launch a demo sim and wait for completion
+        id: launch
+        run: |
+          RESP=$(curl -fsS -X POST http://localhost:8001/k8s/sim/launch \
+            -H 'Content-Type: application/json' \
+            -d '{"scenario":"gru_scenario","xapp_id":"gru-handover","sim_time":60}')
+          echo "$RESP" | jq .
+          RUN_ID=$(echo "$RESP" | jq -r .run_id)
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+
+          kubectl wait --for=condition=complete -n oran \
+            job/sim-$RUN_ID --timeout=120s
+          kubectl wait --for=condition=complete -n oran \
+            job/xapp-gru-handover-$RUN_ID --timeout=120s
+
+      - name: Verify Job logs
+        run: |
+          RUN_ID=${{ steps.launch.outputs.run_id }}
+
+          SIM_LOGS=$(kubectl logs -n oran job/sim-$RUN_ID)
+          XAPP_LOGS=$(kubectl logs -n oran job/xapp-gru-handover-$RUN_ID)
+          echo "── sim logs ──"; echo "$SIM_LOGS"
+          echo "── xapp logs ──"; echo "$XAPP_LOGS"
+
+          echo "$SIM_LOGS"  | grep -q "\[demo\] sim $RUN_ID done"
+          echo "$XAPP_LOGS" | grep -q "\[demo\] xapp gru-handover done"
+
+      - name: Diagnostics on failure
+        if: failure()
+        run: |
+          echo "── pods ──"; kubectl get pods -n oran -o wide || true
+          echo "── jobs ──"; kubectl get jobs -n oran || true
+          echo "── events ──"; kubectl get events -n oran --sort-by=.lastTimestamp | tail -40 || true
+          echo "── controller logs ──"; kubectl logs -n oran deploy/oran-oran-controller --tail=100 || true

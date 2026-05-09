@@ -1,0 +1,105 @@
+name: lint
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+# Cancel superseded runs for the same branch / PR.
+concurrency:
+  group: lint-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+
+  # ── Python ────────────────────────────────────────────────────────
+  python:
+    name: ruff (python lint + format)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/ruff-action@v3
+        with:
+          # ruff settings live in pyproject.toml at the repo root
+          # (added as part of Phase 2 — until then ruff uses defaults)
+          version: latest
+          args: check --output-format=github
+
+  # ── Shell scripts ─────────────────────────────────────────────────
+  shellcheck:
+    name: shellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run shellcheck
+        uses: ludeeus/action-shellcheck@master
+        env:
+          SHELLCHECK_OPTS: --severity=warning --shell=bash
+        with:
+          ignore_paths: >-
+            platform/flexric/build
+            platform/ns3-sim/mmwave-LENA-oran/build
+            platform/gui/node_modules
+
+  # ── JS / Vite frontend ────────────────────────────────────────────
+  js:
+    name: eslint + prettier (3D GUI)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: platform/gui
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: platform/gui/package-lock.json
+      - run: npm ci --silent
+      # Linters are added in Phase 2; for now just verify the bundle builds.
+      - name: Build bundle (smoke check)
+        run: npm run build
+
+  # ── Dockerfiles ───────────────────────────────────────────────────
+  hadolint:
+    name: hadolint (Dockerfile lint)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dockerfile:
+          - platform/controller/Dockerfile
+          - platform/gui/Dockerfile
+          - xapps/gru-handover/python-service/Dockerfile
+          - xapps/rl-handover/python-service/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: ${{ matrix.dockerfile }}
+          failure-threshold: warning
+
+  # ── docker-compose syntax ─────────────────────────────────────────
+  compose-config:
+    name: compose config (syntax)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate docker-compose.dev.yml
+        run: docker compose -f docker-compose.dev.yml config -q
+
+  # ── YAML in general ───────────────────────────────────────────────
+  yamllint:
+    name: yamllint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run yamllint
+        uses: ibiqlik/action-yamllint@v3
+        with:
+          file_or_dir: |
+            .github/workflows
+            docker-compose.dev.yml
+          format: github
+          strict: false
