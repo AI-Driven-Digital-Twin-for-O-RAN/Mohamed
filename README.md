@@ -52,99 +52,54 @@ Adding a fourth xApp is **one entry in `charts/oran/values.yaml`** + a Docker pu
 
 ## 2. System architecture
 
-### Local development (k3d)
+### Local development (k3d + Helm)
+
+<p align="center">
+  <img src="docs/images/local-k3d-architecture.svg" alt="Local k3d architecture" width="100%"/>
+</p>
+
+> SVG above renders natively on GitHub. Editable Mermaid source: [docs/images/local-k3d-architecture.mmd](docs/images/local-k3d-architecture.mmd) · `make diagrams` exports PNG/SVG via `mmdc`.
+
+### Cloud reference architecture (single-VM k3s on Azure / AWS)
+
+<p align="center">
+  <img src="docs/images/cloud-architecture.svg" alt="Cloud reference architecture" width="100%"/>
+</p>
+
+> SVG above renders natively on GitHub. Editable Mermaid source: [docs/images/cloud-architecture.mmd](docs/images/cloud-architecture.mmd) · cost shape + provisioning details in [docs/CLOUD.md](docs/CLOUD.md).
+
+<details>
+  <summary>Mermaid sources (collapsed) — for visual editors</summary>
 
 ```mermaid
-%%{init: {'theme':'base', 'themeVariables': {
-    'primaryColor':'#1e3a5f','primaryTextColor':'#fff','primaryBorderColor':'#7aa2c8',
-    'lineColor':'#7aa2c8','tertiaryColor':'#0d1f33',
-    'background':'#0d1f33','clusterBkg':'#16273f','clusterBorder':'#7aa2c8'
-}}}%%
 flowchart TB
     subgraph DEV["💻 Developer laptop / Azure VM"]
         subgraph DOCKER["🐳 Docker Desktop / Engine"]
             subgraph K3D["k3d cluster (oran-dev)"]
                 subgraph NS["namespace: oran"]
                     direction LR
-                    CTRL["controller<br/>FastAPI :8001"]
-                    GUI["3D GUI ×2<br/>nginx :80"]
+                    CTRL["controller :8001"]
+                    GUI["3D GUI ×2"]
                     GRU["gru-service :5000"]
                     RL["rl-service :5001"]
                     PROM["Prometheus :9090"]
                     GRAF["Grafana :3000"]
-                    CM[("📋 xApp registry<br/>ConfigMap")]
-                    JOBS[/"sim-* + xapp-*<br/>K8s Jobs"/]
+                    CM[("xApp registry CM")]
+                    JOBS[/"sim-* + xapp-* Jobs"/]
                 end
             end
         end
-        BROWSER["🌐 Browser<br/>(localhost:3000/3001/8001/9090)"]
+        BROWSER["🌐 Browser"]
     end
-
-    BROWSER -. "kubectl port-forward" .-> CTRL
-    BROWSER -. "kubectl port-forward" .-> GUI
-    BROWSER -. "kubectl port-forward" .-> GRAF
-    BROWSER -. "kubectl port-forward" .-> PROM
-    CTRL -- "reads at /etc/oran/xapps.json" --> CM
-    CTRL -. "POST /k8s/sim/launch creates" .-> JOBS
-    PROM -- "scrape pod annotation" --> CTRL
-    GRAF -- "datasource" --> PROM
-    GUI -- "/api proxy" --> CTRL
+    BROWSER -. "port-forward" .-> CTRL
+    CTRL -- reads --> CM
+    CTRL -. creates .-> JOBS
+    PROM -- scrape --> CTRL
+    GRAF -- query --> PROM
+    GUI -- "/api" --> CTRL
 ```
 
-> Source: [docs/images/local-k3d-architecture.mmd](docs/images/local-k3d-architecture.mmd) · render to PNG with `make diagrams`.
-
-### Cloud reference (single-VM k3s on Azure / AWS)
-
-```mermaid
-%%{init: {'theme':'base', 'themeVariables': {
-    'primaryColor':'#1e3a5f','primaryTextColor':'#fff','primaryBorderColor':'#7aa2c8',
-    'lineColor':'#7aa2c8','tertiaryColor':'#0d1f33',
-    'background':'#0d1f33','clusterBkg':'#16273f','clusterBorder':'#7aa2c8'
-}}}%%
-flowchart LR
-    subgraph EXT["🌍 Internet"]
-        OP["👤 Operator<br/>(SSH + browser)"]
-    end
-    subgraph CLOUD["☁ Azure / AWS region"]
-        subgraph SG["🛡 Security Group / NSG"]
-            direction TB
-            SSH["SSH 22<br/>(operator IP)"]
-            HTTP["HTTP 80/443<br/>(world)"]
-            K8S_API["k8s API 6443<br/>(operator IP)"]
-        end
-        subgraph VM["💻 Single VM (D8s_v5 / c5.4xlarge)"]
-            EIP[("📌 Static IP<br/>EBS gp3 200GiB")]
-            subgraph K3S["⚙ k3s (single-node)"]
-                direction TB
-                CTRL_C["🎛 controller<br/>:8001"]
-                GUI_C["🖥 3D GUI<br/>nginx :80"]
-                GRU_C["🧠 GRU svc :5000<br/>+HPA"]
-                RL_C["🤖 RL svc :5001<br/>+HPA"]
-                FLEX["📡 FlexRIC<br/>SCTP 36421/36422"]
-                NS3[/"⏱ ns-3 Job<br/>(per run)"/]
-                XAPP[/"⚡ xApp Job<br/>(per run)"/]
-                INFLUX[("📊 InfluxDB")]
-                PROM_C["🔭 Prometheus"]
-                GRAF_C["📈 Grafana<br/>+ pre-loaded<br/>dashboard"]
-            end
-        end
-    end
-    OP --> SSH
-    OP --> HTTP
-    OP --> K8S_API
-    SG --- VM
-    GUI_C -- "/api proxy" --> CTRL_C
-    CTRL_C -. "create Job" .-> NS3
-    CTRL_C -. "create Job" .-> XAPP
-    XAPP -- "HTTP predict" --> GRU_C
-    XAPP -- "HTTP predict" --> RL_C
-    NS3 -- "E2 / SCTP" --> FLEX
-    XAPP -- "E42 / SCTP" --> FLEX
-    PROM_C -- "scrape" --> CTRL_C
-    GRAF_C -- "query" --> PROM_C
-```
-
-> Source: [docs/images/cloud-architecture.mmd](docs/images/cloud-architecture.mmd) · cost shape + provisioning details in [docs/CLOUD.md](docs/CLOUD.md).
+</details>
 
 ### Component-level data flow (legacy ASCII)
 

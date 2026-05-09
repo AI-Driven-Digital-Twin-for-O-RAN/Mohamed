@@ -1,0 +1,186 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 1000" font-family="Inter, -apple-system, Segoe UI, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#5b6b7a"/>
+    </marker>
+    <marker id="ab" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#2b6cb0"/>
+    </marker>
+    <marker id="ao" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#c05621"/>
+    </marker>
+    <filter id="sh" x="-2" y="-2" width="120%" height="120%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="2"/>
+      <feOffset dx="2" dy="2"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.18"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <style><![CDATA[
+      .lbl   { font-size: 14px; fill: #1a202c; font-weight: 500; }
+      .lbl-w { font-size: 14px; fill: #ffffff; font-weight: 600; }
+      .sub   { font-size: 11px; fill: #4a5568; }
+      .sub-w { font-size: 11px; fill: #cbd5e0; }
+      .grp   { font-size: 16px; font-weight: 600; fill: #2d3748; }
+      .grp-w { font-size: 16px; font-weight: 600; fill: #ffffff; }
+      .edge  { stroke: #5b6b7a; stroke-width: 2; fill: none; }
+      .edge-b { stroke: #2b6cb0; stroke-width: 2; fill: none; stroke-dasharray: 6 4; }
+      .edge-o { stroke: #c05621; stroke-width: 2; fill: none; stroke-dasharray: 6 4; }
+      .elbl  { font-size: 11px; fill: #2d3748; font-style: italic; }
+    ]]></style>
+  </defs>
+
+  <text x="750" y="40" text-anchor="middle" font-size="22" font-weight="700" fill="#1a202c">
+    5G O-RAN Platform — Local Development (k3d + Helm)
+  </text>
+  <text x="750" y="62" text-anchor="middle" font-size="13" fill="#4a5568">
+    Free · runs on Docker Desktop or Linux laptop · `make k3d-up &amp;&amp; make deploy`
+  </text>
+
+  <!-- Browser -->
+  <rect x="50" y="100" width="280" height="100" rx="10" fill="#ebf8ff" stroke="#3182ce" stroke-width="2" filter="url(#sh)"/>
+  <text x="190" y="128" text-anchor="middle" class="grp">🌐 Browser (laptop)</text>
+  <text x="190" y="152" text-anchor="middle" class="sub">localhost:3000  Grafana</text>
+  <text x="190" y="170" text-anchor="middle" class="sub">localhost:3001  3D GUI</text>
+  <text x="190" y="188" text-anchor="middle" class="sub">localhost:8001  Controller · localhost:9090  Prometheus</text>
+
+  <!-- Developer machine container -->
+  <rect x="50" y="240" width="1410" height="700" rx="14" fill="#f7fafc" stroke="#5b6b7a" stroke-width="3" stroke-dasharray="10 4" filter="url(#sh)"/>
+  <text x="75" y="270" class="grp">💻 Developer laptop / Azure VM</text>
+  <text x="75" y="288" class="sub">Ubuntu / WSL2 · Docker Desktop with WSL integration · helm + kubectl + k3d in ~/.local/bin</text>
+
+  <!-- Docker Engine -->
+  <rect x="80" y="310" width="1350" height="610" rx="12" fill="#fff" stroke="#0db7ed" stroke-width="2.5"/>
+  <text x="105" y="338" class="grp" fill="#0db7ed">🐳 Docker Desktop / Engine</text>
+
+  <!-- k3d cluster -->
+  <rect x="105" y="360" width="1300" height="540" rx="12" fill="#1a365d" stroke="#2b6cb0" stroke-width="2.5"/>
+  <text x="130" y="390" class="grp-w">⚙ k3d cluster `oran-dev`  (k3s in Docker · 1 server + 1 agent)</text>
+
+  <!-- namespace -->
+  <rect x="130" y="415" width="1250" height="465" rx="10" fill="#2a4365" stroke="#90cdf4" stroke-width="1.5"/>
+  <text x="155" y="442" class="grp-w">namespace: oran  ·  Helm release: oran  ·  27 K8s resources</text>
+
+  <!-- Row 1: 4 light pods -->
+  <rect x="155" y="460" width="280" height="100" rx="8" fill="#2c5282" stroke="#90cdf4" stroke-width="1.5" filter="url(#sh)"/>
+  <text x="295" y="483" text-anchor="middle" class="lbl-w">🎛 Controller</text>
+  <text x="295" y="503" text-anchor="middle" class="sub-w">FastAPI :8001 · 1 replica</text>
+  <text x="295" y="520" text-anchor="middle" class="sub-w">/healthz /readyz /metrics</text>
+  <text x="295" y="537" text-anchor="middle" class="sub-w">/ctrl/* (host) · /k8s/* (Jobs)</text>
+  <text x="295" y="554" text-anchor="middle" class="sub-w">image: mohamed710/oran-controller</text>
+
+  <rect x="455" y="460" width="280" height="100" rx="8" fill="#2c5282" stroke="#90cdf4" stroke-width="1.5" filter="url(#sh)"/>
+  <text x="595" y="483" text-anchor="middle" class="lbl-w">🖥 3D GUI ×2 replicas</text>
+  <text x="595" y="503" text-anchor="middle" class="sub-w">Vite + Three.js · nginx :80</text>
+  <text x="595" y="520" text-anchor="middle" class="sub-w">cell towers + UEs visualization</text>
+  <text x="595" y="537" text-anchor="middle" class="sub-w">/api proxies to controller</text>
+  <text x="595" y="554" text-anchor="middle" class="sub-w">image: mohamed710/oran-gui</text>
+
+  <rect x="755" y="460" width="280" height="100" rx="8" fill="#2c5282" stroke="#90cdf4" stroke-width="1.5" filter="url(#sh)"/>
+  <text x="895" y="483" text-anchor="middle" class="lbl-w">🧠 GRU Python service</text>
+  <text x="895" y="503" text-anchor="middle" class="sub-w">Flask :5000  +HPA</text>
+  <text x="895" y="520" text-anchor="middle" class="sub-w">handover_model_final.keras</text>
+  <text x="895" y="537" text-anchor="middle" class="sub-w">10 timesteps × 12 features</text>
+  <text x="895" y="554" text-anchor="middle" class="sub-w">image: mohamed710/xapp-gru-service</text>
+
+  <rect x="1055" y="460" width="305" height="100" rx="8" fill="#2c5282" stroke="#90cdf4" stroke-width="1.5" filter="url(#sh)"/>
+  <text x="1207" y="483" text-anchor="middle" class="lbl-w">🤖 RL Python service</text>
+  <text x="1207" y="503" text-anchor="middle" class="sub-w">Flask :5001  +HPA</text>
+  <text x="1207" y="520" text-anchor="middle" class="sub-w">DDQN policy network (PyTorch)</text>
+  <text x="1207" y="537" text-anchor="middle" class="sub-w">8 features × 5-step window</text>
+  <text x="1207" y="554" text-anchor="middle" class="sub-w">image: mohamed710/xapp-rl-service</text>
+
+  <!-- Row 2: ConfigMap + Jobs -->
+  <rect x="155" y="585" width="490" height="80" rx="8" fill="#22543d" stroke="#9ae6b4" stroke-width="1.5" filter="url(#sh)"/>
+  <text x="400" y="610" text-anchor="middle" class="lbl-w">📋 xApp registry ConfigMap</text>
+  <text x="400" y="628" text-anchor="middle" class="sub-w">/etc/oran/xapps.json mounted into controller pod</text>
+  <text x="400" y="645" text-anchor="middle" class="sub-w">3 entries: gru-handover · rl-handover · lb-awf</text>
+
+  <rect x="665" y="585" width="695" height="80" rx="8" fill="#9c4221" stroke="#feb2a3" stroke-width="1.5" filter="url(#sh)"/>
+  <text x="1012" y="610" text-anchor="middle" class="lbl-w">⏱ K8s Jobs spawned by /k8s/sim/launch</text>
+  <text x="1012" y="628" text-anchor="middle" class="sub-w">sim-rXXXX · xapp-gru-rXXXX · xapp-rl-rXXXX  (busybox demo · 30-45s each)</text>
+  <text x="1012" y="645" text-anchor="middle" class="sub-w">labels: oran.farouk/run-id, oran.farouk/job-kind, oran.farouk/xapp-id</text>
+
+  <!-- Row 3: Observability -->
+  <rect x="155" y="690" width="640" height="170" rx="10" fill="#2a4365" stroke="#90cdf4" stroke-width="2"/>
+  <text x="180" y="717" class="lbl-w" font-size="14" font-weight="600">🔭 Observability stack</text>
+
+  <rect x="180" y="730" width="285" height="115" rx="8" fill="#1a365d" stroke="#90cdf4" stroke-width="1"/>
+  <text x="322" y="752" text-anchor="middle" class="lbl-w">🔭 Prometheus :9090</text>
+  <text x="322" y="772" text-anchor="middle" class="sub-w">scrape every 15s</text>
+  <text x="322" y="789" text-anchor="middle" class="sub-w">discovery: pod annotations</text>
+  <text x="322" y="806" text-anchor="middle" class="sub-w">prometheus.io/scrape: "true"</text>
+  <text x="322" y="823" text-anchor="middle" class="sub-w">7 metrics, sim006 reference</text>
+  <text x="322" y="840" text-anchor="middle" class="sub-w">DEMO_METRICS_AUTO loop @30s</text>
+
+  <rect x="485" y="730" width="285" height="115" rx="8" fill="#1a365d" stroke="#90cdf4" stroke-width="1"/>
+  <text x="627" y="752" text-anchor="middle" class="lbl-w">📈 Grafana :3000</text>
+  <text x="627" y="772" text-anchor="middle" class="sub-w">admin / admin (default)</text>
+  <text x="627" y="789" text-anchor="middle" class="sub-w">Prometheus datasource auto</text>
+  <text x="627" y="806" text-anchor="middle" class="sub-w">"O-RAN platform — overview"</text>
+  <text x="627" y="823" text-anchor="middle" class="sub-w">12 panels: stats · gauges</text>
+  <text x="627" y="840" text-anchor="middle" class="sub-w">pies · timeseries · heatmap</text>
+
+  <!-- ConfigMaps cluster -->
+  <rect x="815" y="690" width="545" height="170" rx="10" fill="#22543d" stroke="#9ae6b4" stroke-width="2"/>
+  <text x="840" y="717" class="lbl-w" font-size="14" font-weight="600">📦 ConfigMaps + Volumes</text>
+
+  <rect x="840" y="730" width="160" height="55" rx="6" fill="#1c4532" stroke="#9ae6b4" stroke-width="1"/>
+  <text x="920" y="752" text-anchor="middle" class="sub-w">prometheus-config</text>
+  <text x="920" y="770" text-anchor="middle" class="sub-w">prometheus.yml</text>
+
+  <rect x="1010" y="730" width="160" height="55" rx="6" fill="#1c4532" stroke="#9ae6b4" stroke-width="1"/>
+  <text x="1090" y="752" text-anchor="middle" class="sub-w">grafana-datasources</text>
+  <text x="1090" y="770" text-anchor="middle" class="sub-w">+ providers + dashboards</text>
+
+  <rect x="1180" y="730" width="170" height="55" rx="6" fill="#1c4532" stroke="#9ae6b4" stroke-width="1"/>
+  <text x="1265" y="752" text-anchor="middle" class="sub-w">controller-data PVC</text>
+  <text x="1265" y="770" text-anchor="middle" class="sub-w">5 GiB · sim-results</text>
+
+  <rect x="840" y="800" width="160" height="55" rx="6" fill="#1c4532" stroke="#9ae6b4" stroke-width="1"/>
+  <text x="920" y="822" text-anchor="middle" class="sub-w">xapp-registry</text>
+  <text x="920" y="840" text-anchor="middle" class="sub-w">3 xApps + meta</text>
+
+  <rect x="1010" y="800" width="340" height="55" rx="6" fill="#1c4532" stroke="#9ae6b4" stroke-width="1"/>
+  <text x="1180" y="822" text-anchor="middle" class="sub-w">controller RBAC</text>
+  <text x="1180" y="840" text-anchor="middle" class="sub-w">ServiceAccount + Role + RoleBinding (Job + Pod create)</text>
+
+  <!-- ============== EDGES ============== -->
+  <!-- Browser → kubectl port-forward -->
+  <line x1="190" y1="200" x2="290" y2="455" class="edge-b" marker-end="url(#ab)"/>
+  <text x="220" y="260" class="elbl">kubectl port-forward</text>
+
+  <!-- GUI → Controller via /api -->
+  <line x1="455" y1="495" x2="435" y2="495" class="edge-b" marker-end="url(#ab)"/>
+  <text x="445" y="486" text-anchor="end" class="elbl">/api proxy</text>
+
+  <!-- Controller → Jobs -->
+  <path d="M 295 560 Q 295 580 670 595" class="edge-o" marker-end="url(#ao)"/>
+  <text x="490" y="580" text-anchor="middle" class="elbl">create Job (BatchV1Api)</text>
+
+  <!-- Controller reads ConfigMap -->
+  <line x1="155" y1="605" x2="295" y2="560" class="edge" marker-end="url(#a)"/>
+  <text x="170" y="595" class="elbl">read xapps.json</text>
+
+  <!-- xApp Jobs → Python services -->
+  <path d="M 1010 595 Q 1130 580 1100 560" class="edge-b" marker-end="url(#ab)"/>
+  <text x="1095" y="580" text-anchor="middle" class="elbl">HTTP predict</text>
+
+  <!-- Prometheus → Controller -->
+  <path d="M 322 730 Q 280 640 290 565" class="edge" marker-end="url(#a)"/>
+  <text x="280" y="680" text-anchor="end" class="elbl">scrape /metrics</text>
+
+  <!-- Grafana → Prometheus -->
+  <line x1="485" y1="788" x2="465" y2="788" class="edge" marker-end="url(#a)"/>
+  <text x="475" y="780" text-anchor="end" class="elbl">PromQL</text>
+
+  <!-- Legend -->
+  <rect x="50" y="950" width="700" height="40" rx="6" fill="#fff" stroke="#cbd5e0"/>
+  <rect x="65" y="960" width="20" height="14" rx="3" fill="#2c5282"/>
+  <text x="92" y="971" class="sub">Always-running pod</text>
+  <rect x="220" y="960" width="20" height="14" rx="3" fill="#9c4221"/>
+  <text x="247" y="971" class="sub">Per-run K8s Job</text>
+  <rect x="370" y="960" width="20" height="14" rx="3" fill="#22543d"/>
+  <text x="397" y="971" class="sub">ConfigMap / PVC / RBAC</text>
+  <rect x="560" y="960" width="20" height="14" rx="3" fill="#0db7ed"/>
+  <text x="587" y="971" class="sub">Container runtime boundary</text>
+</svg>

@@ -1,0 +1,278 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1700 1180" font-family="Inter, -apple-system, Segoe UI, sans-serif">
+  <defs>
+    <!-- Arrow marker -->
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#5b6b7a"/>
+    </marker>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#2b6cb0"/>
+    </marker>
+    <marker id="arrow-orange" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#c05621"/>
+    </marker>
+    <marker id="arrow-purple" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#6b46c1"/>
+    </marker>
+
+    <!-- Drop shadow filter -->
+    <filter id="shadow" x="-2" y="-2" width="120%" height="120%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="2"/>
+      <feOffset dx="2" dy="2"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.18"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+
+    <!-- Color styles for groups -->
+    <style><![CDATA[
+      .lbl    { font-size: 14px; fill: #1a202c; font-weight: 500; }
+      .lbl-w  { font-size: 14px; fill: #ffffff; font-weight: 600; }
+      .sub    { font-size: 11px; fill: #4a5568; }
+      .sub-w  { font-size: 11px; fill: #cbd5e0; }
+      .grp    { font-size: 16px; font-weight: 600; fill: #2d3748; }
+      .grp-w  { font-size: 16px; font-weight: 600; fill: #ffffff; }
+      .edge   { stroke: #5b6b7a; stroke-width: 2; fill: none; }
+      .edge-blue   { stroke: #2b6cb0; stroke-width: 2; fill: none; stroke-dasharray: 6 4; }
+      .edge-orange { stroke: #c05621; stroke-width: 2; fill: none; stroke-dasharray: 6 4; }
+      .edge-purple { stroke: #6b46c1; stroke-width: 2; fill: none; }
+      .edge-lbl    { font-size: 11px; fill: #2d3748; font-style: italic; }
+    ]]></style>
+  </defs>
+
+  <!-- Title -->
+  <text x="850" y="40" text-anchor="middle" font-size="22" font-weight="700" fill="#1a202c">
+    5G O-RAN Platform — Cloud Reference Architecture
+  </text>
+  <text x="850" y="62" text-anchor="middle" font-size="13" fill="#4a5568">
+    Single-VM k3s deployment on Azure / AWS  ·  ~$2 per 6-hour demo session  ·  see docs/CLOUD.md
+  </text>
+
+  <!-- ============== Internet (top) ============== -->
+  <rect x="40" y="100" width="200" height="80" rx="8" fill="#ebf8ff" stroke="#3182ce" stroke-width="2" filter="url(#shadow)"/>
+  <text x="140" y="128" text-anchor="middle" class="grp">🌍 Internet</text>
+  <text x="140" y="150" text-anchor="middle" class="lbl">👤 Operator</text>
+  <text x="140" y="166" text-anchor="middle" class="sub">SSH · browser · curl</text>
+
+  <!-- ============== Cloud region (huge container) ============== -->
+  <rect x="280" y="90" width="1380" height="1060" rx="14" fill="#f7fafc" stroke="#2b6cb0" stroke-width="3" stroke-dasharray="10 4" filter="url(#shadow)"/>
+  <text x="305" y="120" class="grp" fill="#2b6cb0">☁ Azure / AWS Region (West Europe / eu-west-1)</text>
+
+  <!-- ============== Security Group (NSG) ============== -->
+  <rect x="320" y="155" width="1300" height="100" rx="10" fill="#fff5f5" stroke="#c53030" stroke-width="2"/>
+  <text x="345" y="180" class="grp" fill="#c53030">🛡 Security Group / NSG  ·  inbound rules</text>
+
+  <rect x="345" y="195" width="200" height="48" rx="6" fill="#fed7d7" stroke="#c53030" stroke-width="1.5"/>
+  <text x="445" y="216" text-anchor="middle" class="lbl">SSH 22</text>
+  <text x="445" y="232" text-anchor="middle" class="sub">operator IP /32</text>
+
+  <rect x="565" y="195" width="200" height="48" rx="6" fill="#fed7d7" stroke="#c53030" stroke-width="1.5"/>
+  <text x="665" y="216" text-anchor="middle" class="lbl">HTTP / HTTPS</text>
+  <text x="665" y="232" text-anchor="middle" class="sub">80 / 443  (world)</text>
+
+  <rect x="785" y="195" width="200" height="48" rx="6" fill="#fed7d7" stroke="#c53030" stroke-width="1.5"/>
+  <text x="885" y="216" text-anchor="middle" class="lbl">k3s API 6443</text>
+  <text x="885" y="232" text-anchor="middle" class="sub">operator IP /32</text>
+
+  <rect x="1005" y="195" width="200" height="48" rx="6" fill="#fed7d7" stroke="#c53030" stroke-width="1.5"/>
+  <text x="1105" y="216" text-anchor="middle" class="lbl">3000 / 3001 / 8001 / 9090</text>
+  <text x="1105" y="232" text-anchor="middle" class="sub">demo screenshots</text>
+
+  <rect x="1225" y="195" width="380" height="48" rx="6" fill="#fefcbf" stroke="#b7791f" stroke-width="1.5"/>
+  <text x="1415" y="216" text-anchor="middle" class="lbl">All other ports — DENY</text>
+  <text x="1415" y="232" text-anchor="middle" class="sub">egress: ALLOW (Docker Hub / GitHub clone / apt mirrors)</text>
+
+  <!-- ============== VM ============== -->
+  <rect x="320" y="285" width="1300" height="840" rx="12" fill="#edf2f7" stroke="#2b6cb0" stroke-width="2.5"/>
+  <text x="345" y="312" class="grp">💻 EC2 / Azure VM  —  c5.4xlarge / Standard_D8s_v5</text>
+  <text x="345" y="330" class="sub">Ubuntu 22.04 LTS  ·  Spot pricing  ·  auto-shutdown after 4 hours</text>
+
+  <!-- VM static-IP / EBS chip -->
+  <rect x="1340" y="295" width="270" height="50" rx="6" fill="#feebc8" stroke="#c05621" stroke-width="1.5"/>
+  <text x="1475" y="316" text-anchor="middle" class="lbl">📌 Static IP (EIP)</text>
+  <text x="1475" y="332" text-anchor="middle" class="sub">+ EBS gp3 200 GiB encrypted</text>
+
+  <!-- ============== k3s cluster (inside VM) ============== -->
+  <rect x="345" y="360" width="1250" height="745" rx="12" fill="#1a365d" stroke="#2b6cb0" stroke-width="2.5"/>
+  <text x="370" y="390" class="grp-w">⚙ k3s — single-node Kubernetes  ·  namespace: oran  ·  Helm release: oran</text>
+
+  <!-- Row 1 — controller + GUI + FlexRIC -->
+  <rect x="370" y="415" width="220" height="100" rx="8" fill="#2c5282" stroke="#90cdf4" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="480" y="438" text-anchor="middle" class="lbl-w">🎛 Controller</text>
+  <text x="480" y="458" text-anchor="middle" class="sub-w">FastAPI :8001</text>
+  <text x="480" y="475" text-anchor="middle" class="sub-w">/healthz · /metrics · /readyz</text>
+  <text x="480" y="492" text-anchor="middle" class="sub-w">/ctrl/* · /k8s/*</text>
+  <text x="480" y="509" text-anchor="middle" class="sub-w">+ ServiceAccount + RBAC</text>
+
+  <rect x="610" y="415" width="220" height="100" rx="8" fill="#2c5282" stroke="#90cdf4" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="720" y="438" text-anchor="middle" class="lbl-w">🖥 3D GUI ×2 replicas</text>
+  <text x="720" y="458" text-anchor="middle" class="sub-w">nginx :80</text>
+  <text x="720" y="475" text-anchor="middle" class="sub-w">Vite + Three.js bundle</text>
+  <text x="720" y="492" text-anchor="middle" class="sub-w">/api/* → controller proxy</text>
+  <text x="720" y="509" text-anchor="middle" class="sub-w">behind Ingress / LB</text>
+
+  <rect x="850" y="415" width="220" height="100" rx="8" fill="#553c9a" stroke="#d6bcfa" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="960" y="438" text-anchor="middle" class="lbl-w">📡 FlexRIC</text>
+  <text x="960" y="458" text-anchor="middle" class="sub-w">nearRT-RIC</text>
+  <text x="960" y="475" text-anchor="middle" class="sub-w">SCTP 36421 (E2)</text>
+  <text x="960" y="492" text-anchor="middle" class="sub-w">SCTP 36422 (E42)</text>
+  <text x="960" y="509" text-anchor="middle" class="sub-w">+ all C xApp binaries baked in</text>
+
+  <rect x="1090" y="415" width="220" height="100" rx="8" fill="#2c5282" stroke="#90cdf4" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="1200" y="438" text-anchor="middle" class="lbl-w">🧠 GRU service</text>
+  <text x="1200" y="458" text-anchor="middle" class="sub-w">Flask :5000  +HPA(2-5)</text>
+  <text x="1200" y="475" text-anchor="middle" class="sub-w">Keras handover model</text>
+  <text x="1200" y="492" text-anchor="middle" class="sub-w">10×12 KPM features</text>
+  <text x="1200" y="509" text-anchor="middle" class="sub-w">EXECUTE / AVOID</text>
+
+  <rect x="1330" y="415" width="220" height="100" rx="8" fill="#2c5282" stroke="#90cdf4" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="1440" y="438" text-anchor="middle" class="lbl-w">🤖 RL service</text>
+  <text x="1440" y="458" text-anchor="middle" class="sub-w">Flask :5001  +HPA(2-5)</text>
+  <text x="1440" y="475" text-anchor="middle" class="sub-w">DDQN policy network</text>
+  <text x="1440" y="492" text-anchor="middle" class="sub-w">8 features × 5 timesteps</text>
+  <text x="1440" y="509" text-anchor="middle" class="sub-w">stay / handover</text>
+
+  <!-- Row 2 — K8s Jobs (per simulation) -->
+  <rect x="370" y="540" width="700" height="80" rx="8" fill="#9c4221" stroke="#feb2a3" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="720" y="562" text-anchor="middle" class="lbl-w">⏱ K8s Jobs spawned per /k8s/sim/launch  —  controller calls BatchV1Api.create_namespaced_job()</text>
+
+  <rect x="395" y="575" width="160" height="40" rx="6" fill="#7b341e" stroke="#feb2a3" stroke-width="1"/>
+  <text x="475" y="592" text-anchor="middle" class="sub-w">sim-rXXXX</text>
+  <text x="475" y="608" text-anchor="middle" class="sub-w">ns-3 mmwave Job</text>
+
+  <rect x="565" y="575" width="160" height="40" rx="6" fill="#7b341e" stroke="#feb2a3" stroke-width="1"/>
+  <text x="645" y="592" text-anchor="middle" class="sub-w">xapp-gru-rXXXX</text>
+  <text x="645" y="608" text-anchor="middle" class="sub-w">C xApp Job</text>
+
+  <rect x="735" y="575" width="160" height="40" rx="6" fill="#7b341e" stroke="#feb2a3" stroke-width="1"/>
+  <text x="815" y="592" text-anchor="middle" class="sub-w">xapp-rl-rXXXX</text>
+  <text x="815" y="608" text-anchor="middle" class="sub-w">RL C xApp Job</text>
+
+  <rect x="905" y="575" width="160" height="40" rx="6" fill="#7b341e" stroke="#feb2a3" stroke-width="1"/>
+  <text x="985" y="592" text-anchor="middle" class="sub-w">xapp-lb-rXXXX</text>
+  <text x="985" y="608" text-anchor="middle" class="sub-w">AWF LB Job</text>
+
+  <!-- Row 3 — registry ConfigMap -->
+  <rect x="1090" y="540" width="460" height="80" rx="8" fill="#22543d" stroke="#9ae6b4" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="1320" y="565" text-anchor="middle" class="lbl-w">📋 xApp registry  (ConfigMap)</text>
+  <text x="1320" y="585" text-anchor="middle" class="sub-w">/etc/oran/xapps.json mounted into controller pod</text>
+  <text x="1320" y="602" text-anchor="middle" class="sub-w">3 entries: gru-handover · rl-handover · lb-awf</text>
+
+  <!-- Row 4 — Observability stack -->
+  <rect x="370" y="650" width="1180" height="180" rx="10" fill="#2a4365" stroke="#90cdf4" stroke-width="2"/>
+  <text x="395" y="678" class="lbl-w" font-size="14" font-weight="600">🔭 Observability</text>
+
+  <rect x="395" y="695" width="240" height="120" rx="8" fill="#1a365d" stroke="#90cdf4" stroke-width="1"/>
+  <text x="515" y="717" text-anchor="middle" class="lbl-w">Prometheus :9090</text>
+  <text x="515" y="735" text-anchor="middle" class="sub-w">scrape via pod annotation</text>
+  <text x="515" y="751" text-anchor="middle" class="sub-w">15s interval · 7-day retention</text>
+  <text x="515" y="775" text-anchor="middle" class="sub-w">oran_simulations_total</text>
+  <text x="515" y="791" text-anchor="middle" class="sub-w">oran_handovers_total{xapp,result}</text>
+  <text x="515" y="807" text-anchor="middle" class="sub-w">oran_e2_connections (gauge)</text>
+
+  <rect x="655" y="695" width="240" height="120" rx="8" fill="#1a365d" stroke="#90cdf4" stroke-width="1"/>
+  <text x="775" y="717" text-anchor="middle" class="lbl-w">Grafana :3000</text>
+  <text x="775" y="735" text-anchor="middle" class="sub-w">admin / admin</text>
+  <text x="775" y="751" text-anchor="middle" class="sub-w">datasource auto-provisioned</text>
+  <text x="775" y="775" text-anchor="middle" class="sub-w">"O-RAN platform — overview"</text>
+  <text x="775" y="791" text-anchor="middle" class="sub-w">12 panels · gauges + heatmap</text>
+  <text x="775" y="807" text-anchor="middle" class="sub-w">+ Ingress for external access</text>
+
+  <rect x="915" y="695" width="240" height="120" rx="8" fill="#1a365d" stroke="#90cdf4" stroke-width="1"/>
+  <text x="1035" y="717" text-anchor="middle" class="lbl-w">📊 InfluxDB 1.8</text>
+  <text x="1035" y="735" text-anchor="middle" class="sub-w">StatefulSet + PVC 20 GiB</text>
+  <text x="1035" y="751" text-anchor="middle" class="sub-w">time-series KPM data</text>
+  <text x="1035" y="775" text-anchor="middle" class="sub-w">written by sim_data_pusher</text>
+  <text x="1035" y="791" text-anchor="middle" class="sub-w">queried by 2D GUI backend</text>
+  <text x="1035" y="807" text-anchor="middle" class="sub-w">7-day retention</text>
+
+  <rect x="1175" y="695" width="240" height="120" rx="8" fill="#1a365d" stroke="#90cdf4" stroke-width="1"/>
+  <text x="1295" y="717" text-anchor="middle" class="lbl-w">2D GUI Stack :8000</text>
+  <text x="1295" y="735" text-anchor="middle" class="sub-w">FastAPI + Grafana panels</text>
+  <text x="1295" y="751" text-anchor="middle" class="sub-w">legacy KPM dashboards</text>
+  <text x="1295" y="775" text-anchor="middle" class="sub-w">cell load · throughput</text>
+  <text x="1295" y="791" text-anchor="middle" class="sub-w">SINR per UE</text>
+  <text x="1295" y="807" text-anchor="middle" class="sub-w">Docker compose-driven</text>
+
+  <!-- Row 5 — Persistence -->
+  <rect x="370" y="855" width="1180" height="120" rx="10" fill="#22543d" stroke="#9ae6b4" stroke-width="2"/>
+  <text x="395" y="883" class="lbl-w" font-size="14" font-weight="600">💾 Persistence (PVCs)</text>
+
+  <rect x="395" y="900" width="280" height="60" rx="8" fill="#1c4532" stroke="#9ae6b4" stroke-width="1"/>
+  <text x="535" y="921" text-anchor="middle" class="lbl-w">controller-data PVC</text>
+  <text x="535" y="939" text-anchor="middle" class="sub-w">5 GiB</text>
+  <text x="535" y="954" text-anchor="middle" class="sub-w">/data/sim-results, sim_decisions.db</text>
+
+  <rect x="695" y="900" width="280" height="60" rx="8" fill="#1c4532" stroke="#9ae6b4" stroke-width="1"/>
+  <text x="835" y="921" text-anchor="middle" class="lbl-w">influxdb-data PVC</text>
+  <text x="835" y="939" text-anchor="middle" class="sub-w">20 GiB</text>
+  <text x="835" y="954" text-anchor="middle" class="sub-w">time-series storage</text>
+
+  <rect x="995" y="900" width="280" height="60" rx="8" fill="#1c4532" stroke="#9ae6b4" stroke-width="1"/>
+  <text x="1135" y="921" text-anchor="middle" class="lbl-w">grafana-data PVC</text>
+  <text x="1135" y="939" text-anchor="middle" class="sub-w">2 GiB</text>
+  <text x="1135" y="954" text-anchor="middle" class="sub-w">dashboards · users · prefs</text>
+
+  <!-- Row 6 — CI/CD chip -->
+  <rect x="370" y="1000" width="1180" height="80" rx="10" fill="#234e52" stroke="#76e4f7" stroke-width="2"/>
+  <text x="395" y="1027" class="lbl-w" font-size="14" font-weight="600">🚀 CI/CD  ·  GitHub Actions</text>
+  <rect x="395" y="1040" width="180" height="30" rx="6" fill="#0d4148" stroke="#76e4f7" stroke-width="1"/>
+  <text x="485" y="1059" text-anchor="middle" class="sub-w">lint  ·  ✓</text>
+  <rect x="595" y="1040" width="180" height="30" rx="6" fill="#0d4148" stroke="#76e4f7" stroke-width="1"/>
+  <text x="685" y="1059" text-anchor="middle" class="sub-w">unit-tests  ·  18 ✓</text>
+  <rect x="795" y="1040" width="180" height="30" rx="6" fill="#0d4148" stroke="#76e4f7" stroke-width="1"/>
+  <text x="885" y="1059" text-anchor="middle" class="sub-w">smoke (k3d in CI)  ·  ✓</text>
+  <rect x="995" y="1040" width="180" height="30" rx="6" fill="#0d4148" stroke="#76e4f7" stroke-width="1"/>
+  <text x="1085" y="1059" text-anchor="middle" class="sub-w">build → Docker Hub  ·  ✓</text>
+  <text x="1370" y="1059" text-anchor="middle" class="sub-w">Argo CD GitOps (future)</text>
+
+  <!-- ================ EDGES ================ -->
+  <!-- Operator → SG -->
+  <line x1="240" y1="140" x2="320" y2="200" class="edge" marker-end="url(#arrow)"/>
+  <text x="245" y="180" class="edge-lbl">SSH + HTTPS</text>
+
+  <!-- GUI ↔ Controller -->
+  <line x1="610" y1="465" x2="590" y2="465" class="edge-blue" marker-end="url(#arrow-blue)"/>
+  <text x="595" y="455" text-anchor="end" class="edge-lbl">/api proxy</text>
+
+  <!-- Controller → Jobs (creation) -->
+  <path d="M 480 515 Q 480 540 475 575" class="edge-orange" marker-end="url(#arrow-orange)"/>
+  <text x="488" y="555" class="edge-lbl">create Job</text>
+
+  <!-- xApp Jobs → GRU service -->
+  <path d="M 645 575 Q 950 540 1180 515" class="edge-blue" marker-end="url(#arrow-blue)"/>
+  <text x="990" y="540" text-anchor="middle" class="edge-lbl">HTTP predict</text>
+
+  <!-- ns-3 Job → FlexRIC -->
+  <path d="M 475 575 Q 700 545 950 515" class="edge-purple" marker-end="url(#arrow-purple)"/>
+  <text x="700" y="540" text-anchor="middle" class="edge-lbl">E2 / SCTP</text>
+
+  <!-- Controller → Registry CM -->
+  <line x1="590" y1="475" x2="1090" y2="570" class="edge" marker-end="url(#arrow)"/>
+  <text x="900" y="500" text-anchor="middle" class="edge-lbl">read xapps.json</text>
+
+  <!-- Prometheus → controller (scrape) -->
+  <path d="M 515 695 Q 480 600 480 515" class="edge" marker-end="url(#arrow)"/>
+  <text x="510" y="635" class="edge-lbl">scrape /metrics</text>
+
+  <!-- Grafana → Prometheus -->
+  <line x1="655" y1="755" x2="635" y2="755" class="edge" marker-end="url(#arrow)"/>
+  <text x="640" y="745" text-anchor="end" class="edge-lbl">PromQL</text>
+
+  <!-- ns-3 Job → InfluxDB -->
+  <path d="M 475 615 Q 700 660 1035 695" class="edge" marker-end="url(#arrow)"/>
+  <text x="780" y="640" text-anchor="middle" class="edge-lbl">CSV → KPM</text>
+
+  <!-- ============== Legend ============== -->
+  <rect x="40" y="1090" width="220" height="80" rx="8" fill="#fff" stroke="#cbd5e0" stroke-width="1"/>
+  <text x="60" y="1108" class="grp">Legend</text>
+  <rect x="60" y="1118" width="20" height="14" rx="3" fill="#2c5282"/>
+  <text x="86" y="1129" class="sub">Always-running pod</text>
+  <rect x="60" y="1138" width="20" height="14" rx="3" fill="#9c4221"/>
+  <text x="86" y="1149" class="sub">Per-run K8s Job</text>
+  <rect x="60" y="1158" width="20" height="14" rx="3" fill="#22543d"/>
+  <text x="86" y="1169" class="sub">Persistent volume / ConfigMap</text>
+
+  <!-- Footer -->
+  <text x="1660" y="1175" text-anchor="end" font-size="10" fill="#718096">
+    AI-Driven-Digital-Twin-for-O-RAN/Mohamed  ·  charts/oran v0.1.0  ·  see docs/ADR/
+  </text>
+</svg>
