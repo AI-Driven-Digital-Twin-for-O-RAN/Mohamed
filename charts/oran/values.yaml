@@ -73,8 +73,13 @@ gui:
 # The upstream image bakes the nearRT-RIC binary AND every C xApp into one
 # image, so xApp Jobs reuse this image and just override the command to
 # point at /usr/local/flexric/xApp/c/<id>/<binary>.
+#
+# DEFAULT: disabled — the FlexRIC image (`mohamed710/flexric:dev`) takes ~30
+# minutes to build and isn't published. Build + import + flip this flag:
+#     make image-build-flexric && make k3d-import
+#     helm upgrade oran charts/oran -n oran --set flexric.enabled=true
 flexric:
-  enabled: true
+  enabled: false
   replicas: 1
   image:
     repository: flexric
