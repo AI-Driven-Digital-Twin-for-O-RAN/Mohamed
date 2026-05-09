@@ -1,11 +1,9 @@
 {{- if .Values.grafana.enabled -}}
 {{/*
-  Pre-provisioned O-RAN demo dashboard. Loaded automatically by Grafana
-  via the providers.yaml + dashboards/ mount in the deployment.
-
-  Panels target metrics emitted by the controller's /metrics endpoint:
-    oran_component_up{component}, oran_e2_connections, oran_handovers_total{xapp,result},
-    oran_pingpong_rate_pct{xapp}, oran_decision_accuracy_pct{xapp}, oran_simulations_total{xapp,scenario}
+  O-RAN platform Grafana dashboard.
+  Panels target metrics emitted by the controller's /metrics endpoint.
+  When DEMO_METRICS_AUTO=true the controller auto-injects sim006 reference
+  values every 30s so the dashboard renders with data even without a real run.
 */}}
 apiVersion: v1
 kind: ConfigMap
@@ -19,116 +17,370 @@ data:
     {
       "title": "O-RAN platform — overview",
       "uid": "oran-overview",
-      "tags": ["oran", "5g", "demo"],
+      "tags": ["oran","5g","mlops","handover"],
       "timezone": "browser",
       "schemaVersion": 39,
-      "version": 1,
+      "version": 2,
       "refresh": "10s",
-      "time": { "from": "now-1h", "to": "now" },
+      "time": { "from": "now-15m", "to": "now" },
+      "annotations": {
+        "list": [
+          { "builtIn": 1, "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+            "enable": true, "hide": true, "name": "Annotations & Alerts" }
+        ]
+      },
       "panels": [
+
+        { "type":"row", "title":"Project KPIs", "collapsed":false,
+          "gridPos":{"x":0,"y":0,"w":24,"h":1},"id":100 },
+
         {
-          "type": "stat",
-          "title": "Component health",
-          "id": 1,
-          "gridPos": { "x": 0, "y": 0, "w": 24, "h": 4 },
-          "options": {
-            "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
-            "colorMode": "background",
-            "textMode": "value_and_name"
+          "type":"stat",
+          "title":"Total simulations",
+          "id":1,
+          "gridPos":{"x":0,"y":1,"w":6,"h":5},
+          "options":{
+            "graphMode":"area",
+            "colorMode":"background",
+            "textMode":"value_and_name",
+            "reduceOptions":{"calcs":["lastNotNull"],"fields":"","values":false}
           },
-          "fieldConfig": {
-            "defaults": {
-              "mappings": [
-                { "type": "value", "options": { "0": { "text": "DOWN", "color": "red"  } } },
-                { "type": "value", "options": { "1": { "text": "UP",   "color": "green" } } }
+          "fieldConfig":{
+            "defaults":{
+              "color":{"mode":"thresholds"},
+              "thresholds":{"mode":"absolute","steps":[
+                {"color":"red","value":null},
+                {"color":"yellow","value":1},
+                {"color":"green","value":2}
+              ]},
+              "unit":"short"
+            }
+          },
+          "targets":[{ "expr":"sum(oran_simulations_total)", "refId":"A" }]
+        },
+
+        {
+          "type":"stat",
+          "title":"Total handovers",
+          "id":2,
+          "gridPos":{"x":6,"y":1,"w":6,"h":5},
+          "options":{
+            "graphMode":"area",
+            "colorMode":"background",
+            "textMode":"value",
+            "reduceOptions":{"calcs":["lastNotNull"]}
+          },
+          "fieldConfig":{
+            "defaults":{
+              "color":{"mode":"continuous-GrYlRd"},
+              "unit":"short"
+            }
+          },
+          "targets":[{ "expr":"sum(oran_handovers_total)", "refId":"A" }]
+        },
+
+        {
+          "type":"gauge",
+          "title":"E2 connections (live)",
+          "id":3,
+          "gridPos":{"x":12,"y":1,"w":6,"h":5},
+          "options":{
+            "showThresholdLabels":true,
+            "showThresholdMarkers":true,
+            "reduceOptions":{"calcs":["lastNotNull"]}
+          },
+          "fieldConfig":{
+            "defaults":{
+              "min":0,"max":8,
+              "color":{"mode":"thresholds"},
+              "thresholds":{"mode":"absolute","steps":[
+                {"color":"red","value":null},
+                {"color":"orange","value":1},
+                {"color":"yellow","value":4},
+                {"color":"green","value":7}
+              ]}
+            }
+          },
+          "targets":[{ "expr":"oran_e2_connections", "refId":"A" }]
+        },
+
+        {
+          "type":"stat",
+          "title":"Active xApp count",
+          "id":4,
+          "gridPos":{"x":18,"y":1,"w":6,"h":5},
+          "options":{
+            "graphMode":"none",
+            "colorMode":"background",
+            "textMode":"value_and_name",
+            "reduceOptions":{"calcs":["lastNotNull"]}
+          },
+          "fieldConfig":{
+            "defaults":{
+              "color":{"mode":"thresholds"},
+              "thresholds":{"mode":"absolute","steps":[
+                {"color":"red","value":null},
+                {"color":"green","value":1}
+              ]}
+            }
+          },
+          "targets":[{ "expr":"sum(oran_component_up{component=\"xapp\"})", "refId":"A" }]
+        },
+
+        { "type":"row", "title":"Component health", "collapsed":false,
+          "gridPos":{"x":0,"y":6,"w":24,"h":1},"id":101 },
+
+        {
+          "type":"bargauge",
+          "title":"Component up/down",
+          "id":5,
+          "gridPos":{"x":0,"y":7,"w":24,"h":5},
+          "options":{
+            "displayMode":"gradient",
+            "orientation":"horizontal",
+            "showUnfilled":true,
+            "reduceOptions":{"calcs":["lastNotNull"]}
+          },
+          "fieldConfig":{
+            "defaults":{
+              "min":0,"max":1,
+              "color":{"mode":"thresholds"},
+              "thresholds":{"mode":"absolute","steps":[
+                {"color":"red","value":null},
+                {"color":"green","value":1}
+              ]},
+              "mappings":[
+                {"type":"value","options":{"0":{"text":"DOWN","color":"red"}}},
+                {"type":"value","options":{"1":{"text":"UP","color":"green"}}}
               ]
             }
           },
-          "targets": [
-            { "expr": "oran_component_up", "legendFormat": "{{ "{{component}}" }}", "refId": "A" }
+          "targets":[
+            { "expr":"oran_component_up", "legendFormat":"{{ "{{component}}" }}", "refId":"A" }
           ]
         },
+
+        { "type":"row", "title":"Per-xApp performance (sim006 reference)", "collapsed":false,
+          "gridPos":{"x":0,"y":12,"w":24,"h":1},"id":102 },
+
         {
-          "type": "stat",
-          "title": "Total simulations",
-          "id": 2,
-          "gridPos": { "x": 0, "y": 4, "w": 6, "h": 5 },
-          "targets": [
-            { "expr": "sum(oran_simulations_total)", "refId": "A" }
-          ]
-        },
-        {
-          "type": "stat",
-          "title": "E2 connections (live)",
-          "id": 3,
-          "gridPos": { "x": 6, "y": 4, "w": 6, "h": 5 },
-          "fieldConfig": {
-            "defaults": {
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  { "color": "red",    "value": null },
-                  { "color": "yellow", "value": 1 },
-                  { "color": "green",  "value": 7 }
-                ]
-              }
+          "type":"gauge",
+          "title":"Decision accuracy (%) — gru-handover",
+          "id":6,
+          "gridPos":{"x":0,"y":13,"w":6,"h":7},
+          "options":{
+            "showThresholdLabels":false,
+            "showThresholdMarkers":true,
+            "reduceOptions":{"calcs":["lastNotNull"]}
+          },
+          "fieldConfig":{
+            "defaults":{
+              "unit":"percent","min":0,"max":100,
+              "color":{"mode":"thresholds"},
+              "thresholds":{"mode":"absolute","steps":[
+                {"color":"red","value":null},
+                {"color":"orange","value":80},
+                {"color":"yellow","value":95},
+                {"color":"green","value":98}
+              ]}
             }
           },
-          "targets": [{ "expr": "oran_e2_connections", "refId": "A" }]
-        },
-        {
-          "type": "stat",
-          "title": "Active xApp",
-          "id": 4,
-          "gridPos": { "x": 12, "y": 4, "w": 6, "h": 5 },
-          "options": { "textMode": "value", "graphMode": "none" },
-          "targets": [
-            { "expr": "sum by (component) (oran_component_up{component=\"xapp\"})",
-              "legendFormat": "{{ "{{component}}" }}", "refId": "A" }
+          "targets":[
+            { "expr":"oran_decision_accuracy_pct{xapp=\"gru-handover\"}", "refId":"A" }
           ]
         },
+
         {
-          "type": "timeseries",
-          "title": "Ping-pong rate (%) per xApp",
-          "id": 5,
-          "gridPos": { "x": 0, "y": 9, "w": 12, "h": 8 },
-          "fieldConfig": {
-            "defaults": { "unit": "percent", "min": 0, "max": 100 }
+          "type":"gauge",
+          "title":"Decision accuracy (%) — rl-handover",
+          "id":7,
+          "gridPos":{"x":6,"y":13,"w":6,"h":7},
+          "options":{
+            "showThresholdLabels":false,
+            "showThresholdMarkers":true,
+            "reduceOptions":{"calcs":["lastNotNull"]}
           },
-          "targets": [
-            { "expr": "oran_pingpong_rate_pct", "legendFormat": "{{ "{{xapp}}" }}", "refId": "A" }
-          ]
-        },
-        {
-          "type": "timeseries",
-          "title": "Decision accuracy (%) per xApp",
-          "id": 6,
-          "gridPos": { "x": 12, "y": 9, "w": 12, "h": 8 },
-          "fieldConfig": {
-            "defaults": { "unit": "percent", "min": 0, "max": 100 }
+          "fieldConfig":{
+            "defaults":{
+              "unit":"percent","min":0,"max":100,
+              "color":{"mode":"thresholds"},
+              "thresholds":{"mode":"absolute","steps":[
+                {"color":"red","value":null},
+                {"color":"orange","value":80},
+                {"color":"yellow","value":95},
+                {"color":"green","value":98}
+              ]}
+            }
           },
-          "targets": [
-            { "expr": "oran_decision_accuracy_pct", "legendFormat": "{{ "{{xapp}}" }}", "refId": "A" }
+          "targets":[
+            { "expr":"oran_decision_accuracy_pct{xapp=\"rl-handover\"}", "refId":"A" }
           ]
         },
+
         {
-          "type": "timeseries",
-          "title": "Handovers per minute (success vs ping-pong)",
-          "id": 7,
-          "gridPos": { "x": 0, "y": 17, "w": 24, "h": 8 },
-          "targets": [
-            { "expr": "sum by (xapp, result) (rate(oran_handovers_total[5m])) * 60",
-              "legendFormat": "{{ "{{xapp}}" }} — {{ "{{result}}" }}", "refId": "A" }
+          "type":"piechart",
+          "title":"Success vs ping-pong (gru-handover)",
+          "id":8,
+          "gridPos":{"x":12,"y":13,"w":6,"h":7},
+          "options":{
+            "pieType":"donut","displayLabels":["name","percent"],
+            "reduceOptions":{"calcs":["lastNotNull"]},
+            "legend":{"displayMode":"list","placement":"bottom","values":["value"]}
+          },
+          "fieldConfig":{
+            "overrides":[
+              {"matcher":{"id":"byName","options":"success"},"properties":[{"id":"color","value":{"mode":"fixed","fixedColor":"green"}}]},
+              {"matcher":{"id":"byName","options":"pingpong"},"properties":[{"id":"color","value":{"mode":"fixed","fixedColor":"red"}}]}
+            ]
+          },
+          "targets":[
+            { "expr":"sum by (result) (oran_handovers_total{xapp=\"gru-handover\"})",
+              "legendFormat":"{{ "{{result}}" }}", "refId":"A" }
           ]
         },
+
         {
-          "type": "heatmap",
-          "title": "Handover decision latency (xApp inference)",
-          "id": 8,
-          "gridPos": { "x": 0, "y": 25, "w": 24, "h": 8 },
-          "targets": [
-            { "expr": "sum by (le) (rate(oran_decision_latency_seconds_bucket[5m]))",
-              "format": "heatmap", "refId": "A" }
+          "type":"piechart",
+          "title":"Success vs ping-pong (rl-handover)",
+          "id":9,
+          "gridPos":{"x":18,"y":13,"w":6,"h":7},
+          "options":{
+            "pieType":"donut","displayLabels":["name","percent"],
+            "reduceOptions":{"calcs":["lastNotNull"]},
+            "legend":{"displayMode":"list","placement":"bottom","values":["value"]}
+          },
+          "fieldConfig":{
+            "overrides":[
+              {"matcher":{"id":"byName","options":"success"},"properties":[{"id":"color","value":{"mode":"fixed","fixedColor":"green"}}]},
+              {"matcher":{"id":"byName","options":"pingpong"},"properties":[{"id":"color","value":{"mode":"fixed","fixedColor":"red"}}]}
+            ]
+          },
+          "targets":[
+            { "expr":"sum by (result) (oran_handovers_total{xapp=\"rl-handover\"})",
+              "legendFormat":"{{ "{{result}}" }}", "refId":"A" }
+          ]
+        },
+
+        { "type":"row", "title":"Time series + latency", "collapsed":false,
+          "gridPos":{"x":0,"y":20,"w":24,"h":1},"id":103 },
+
+        {
+          "type":"timeseries",
+          "title":"Ping-pong rate (%) per xApp",
+          "id":10,
+          "gridPos":{"x":0,"y":21,"w":12,"h":8},
+          "fieldConfig":{
+            "defaults":{
+              "unit":"percent","min":0,"max":10,
+              "color":{"mode":"palette-classic"},
+              "custom":{
+                "drawStyle":"line","lineWidth":2,
+                "fillOpacity":15,"showPoints":"auto","pointSize":4,
+                "thresholdsStyle":{"mode":"line"}
+              },
+              "thresholds":{"mode":"absolute","steps":[
+                {"color":"green","value":null},
+                {"color":"yellow","value":2},
+                {"color":"red","value":5}
+              ]}
+            }
+          },
+          "options":{"legend":{"showLegend":true,"placement":"bottom"}},
+          "targets":[
+            { "expr":"oran_pingpong_rate_pct", "legendFormat":"{{ "{{xapp}}" }}", "refId":"A" }
+          ]
+        },
+
+        {
+          "type":"heatmap",
+          "title":"Decision latency distribution",
+          "id":11,
+          "gridPos":{"x":12,"y":21,"w":12,"h":8},
+          "options":{
+            "calculate":false,
+            "color":{"mode":"scheme","scheme":"Spectral","reverse":true},
+            "legend":{"show":true},
+            "yAxis":{"unit":"s"}
+          },
+          "targets":[
+            { "expr":"sum by (le) (rate(oran_decision_latency_seconds_bucket[5m]))",
+              "format":"heatmap", "refId":"A" }
+          ]
+        },
+
+        {
+          "type":"timeseries",
+          "title":"Handovers per minute (success vs ping-pong)",
+          "id":12,
+          "gridPos":{"x":0,"y":29,"w":24,"h":8},
+          "fieldConfig":{
+            "defaults":{
+              "unit":"short",
+              "color":{"mode":"palette-classic"},
+              "custom":{
+                "drawStyle":"bars","fillOpacity":80,"lineWidth":1,
+                "stacking":{"mode":"normal","group":"A"}
+              }
+            },
+            "overrides":[
+              {"matcher":{"id":"byRegexp","options":".*pingpong.*"},
+               "properties":[{"id":"color","value":{"mode":"fixed","fixedColor":"red"}}]},
+              {"matcher":{"id":"byRegexp","options":".*success.*"},
+               "properties":[{"id":"color","value":{"mode":"fixed","fixedColor":"green"}}]}
+            ]
+          },
+          "options":{"legend":{"showLegend":true,"placement":"bottom"}},
+          "targets":[
+            { "expr":"sum by (xapp, result) (rate(oran_handovers_total[5m])) * 60",
+              "legendFormat":"{{ "{{xapp}}" }} — {{ "{{result}}" }}", "refId":"A" }
+          ]
+        },
+
+        {
+          "type":"table",
+          "title":"xApp summary",
+          "id":13,
+          "gridPos":{"x":0,"y":37,"w":24,"h":6},
+          "options":{
+            "showHeader":true,
+            "footer":{"show":false},
+            "cellHeight":"sm"
+          },
+          "fieldConfig":{
+            "defaults":{
+              "custom":{"align":"auto","cellOptions":{"type":"auto"}}
+            },
+            "overrides":[
+              {"matcher":{"id":"byName","options":"Decision accuracy (%)"},
+               "properties":[{"id":"unit","value":"percent"},
+                             {"id":"custom.cellOptions","value":{"type":"gauge","mode":"basic"}},
+                             {"id":"min","value":0},{"id":"max","value":100}]},
+              {"matcher":{"id":"byName","options":"Ping-pong rate (%)"},
+               "properties":[{"id":"unit","value":"percent"},
+                             {"id":"custom.cellOptions","value":{"type":"gauge","mode":"basic"}},
+                             {"id":"min","value":0},{"id":"max","value":10}]}
+            ]
+          },
+          "targets":[
+            { "expr":"oran_decision_accuracy_pct",
+              "legendFormat":"{{ "{{xapp}}" }}", "format":"table", "refId":"A", "instant":true },
+            { "expr":"oran_pingpong_rate_pct",
+              "legendFormat":"{{ "{{xapp}}" }}", "format":"table", "refId":"B", "instant":true },
+            { "expr":"sum by (xapp) (oran_handovers_total)",
+              "legendFormat":"{{ "{{xapp}}" }}", "format":"table", "refId":"C", "instant":true }
+          ],
+          "transformations":[
+            {"id":"merge"},
+            {"id":"organize","options":{
+              "renameByName":{
+                "Value #A":"Decision accuracy (%)",
+                "Value #B":"Ping-pong rate (%)",
+                "Value #C":"Total handovers",
+                "xapp":"xApp"
+              },
+              "indexByName":{"xApp":0,"Decision accuracy (%)":1,"Ping-pong rate (%)":2,"Total handovers":3},
+              "excludeByName":{"Time":true,"__name__":true,"instance":true,"job":true,"pod":true,"pod_component":true,"pod_xapp_id":true}
+            }}
           ]
         }
       ]

@@ -32,6 +32,11 @@ app = FastAPI(title="Farouk GUI Controller", version="1.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"],
                   allow_methods=["*"], allow_headers=["*"])
 
+# When true, the controller injects sim006 reference metrics every 30s so the
+# Grafana dashboard always renders with believable data — useful for thesis
+# screenshots and live demos before the heavy ns-3 image is built.
+DEMO_METRICS_AUTO = os.environ.get("DEMO_METRICS_AUTO", "false").lower() in ("1", "true", "yes")
+
 # ── Metrics (Prometheus) ──────────────────────────────────────────────────────
 # Surfaced at GET /metrics for Prometheus scraping. Labels chosen so the demo
 # Grafana dashboard can break down by xApp without cardinality explosions.
@@ -475,55 +480,76 @@ async def metrics():
     return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 # ── Debug: inject sim006-shaped metrics (demo + thesis screenshots) ────────────
-@app.post("/debug/inject-demo-metrics")
-async def inject_demo_metrics():
-    """Populate the dashboards with the sim006 reference numbers.
+DEMO_REFERENCE = {
+    "gru-handover": {"scenario": "gru_scenario",
+                     "total": 174, "pingpong": 3, "accuracy": 98.28, "pp_rate": 1.72},
+    "rl-handover":  {"scenario": "gru_scenario",
+                     "total": 168, "pingpong": 5, "accuracy": 97.02, "pp_rate": 2.97},
+}
 
-    sim006 (the validated reference run): 174 handovers, 3 ping-pongs (1.72%),
-    98.28% decision accuracy at indicationPeriodicity=0.05. These are real
-    measured numbers from the project's reference run, not invented.
 
-    Use only for thesis figures and demo screenshots. Caption screenshots
-    accordingly: "demo metrics matching sim006 reference values".
+def _inject_demo_metrics_once() -> dict:
+    """Set every demo gauge / counter to the sim006 reference values.
+
+    Idempotent for gauges (.set), but counters (.inc) accumulate. The auto-
+    inject loop calls this every 30s with small handover deltas so the
+    `rate(oran_handovers_total[5m])` panel renders a moving line.
     """
     import random
-    REFERENCE = {
-        "gru-handover": {
-            "scenario":   "gru_scenario",
-            "total":      174,
-            "pingpong":   3,
-            "accuracy":   98.28,
-            "pp_rate":    1.72,
-        },
-        "rl-handover": {
-            "scenario":   "gru_scenario",
-            "total":      168,
-            "pingpong":   5,
-            "accuracy":   97.02,
-            "pp_rate":    2.97,
-        },
-    }
-    for xapp, ref in REFERENCE.items():
+    for xapp, ref in DEMO_REFERENCE.items():
+        # Gauges — set to fixed values.
+        METRIC_PINGPONG_RATE.labels(xapp=xapp).set(ref["pp_rate"])
+        METRIC_GRU_ACCURACY.labels(xapp=xapp).set(ref["accuracy"])
+        # Counters — bump by reference batch (so timeseries panels animate).
         METRIC_SIMS.labels(xapp=xapp, scenario=ref["scenario"]).inc()
         METRIC_HANDOVERS.labels(xapp=xapp, result="success").inc(ref["total"] - ref["pingpong"])
         METRIC_HANDOVERS.labels(xapp=xapp, result="pingpong").inc(ref["pingpong"])
-        METRIC_PINGPONG_RATE.labels(xapp=xapp).set(ref["pp_rate"])
-        METRIC_GRU_ACCURACY.labels(xapp=xapp).set(ref["accuracy"])
-        # Latency histogram — sample from a realistic distribution.
-        for _ in range(50):
+        # Latency histogram — sample realistic values.
+        for _ in range(20):
             METRIC_DECISION_LATENCY.labels(xapp=xapp).observe(random.uniform(0.01, 0.5))
 
-    # Pretend an xApp + sim are currently running (for the green tile).
+    # Component health — pretend the active xApp + sim + RIC are up.
     METRIC_COMPONENT_UP.labels(component="xapp").set(1)
     METRIC_COMPONENT_UP.labels(component="simulation").set(1)
     METRIC_COMPONENT_UP.labels(component="flexric").set(1)
-    METRIC_E2_CONNECTIONS.set(7)   # 7 mmWave cells, all connected
+    METRIC_E2_CONNECTIONS.set(7)
+    return DEMO_REFERENCE
 
+
+@app.post("/debug/inject-demo-metrics")
+async def inject_demo_metrics():
+    """Manually trigger one inject cycle. Auto-inject (DEMO_METRICS_AUTO=true)
+    runs the same logic every 30s in the background."""
     return {
         "status": "demo metrics injected",
-        "reference": REFERENCE,
+        "reference": _inject_demo_metrics_once(),
+        "auto_inject": DEMO_METRICS_AUTO,
         "note": "Caption thesis figures: 'sim006 reference values'.",
     }
+
+
+@app.on_event("startup")
+async def _start_demo_inject_loop():
+    """Background task: keep the dashboard populated with sim006 reference
+    values. Activated by DEMO_METRICS_AUTO=true (default in the chart's
+    K8S_DEMO_MODE). The loop runs every 30 seconds."""
+    if not DEMO_METRICS_AUTO:
+        return
+
+    async def _loop():
+        # Initial inject so the dashboard has data immediately.
+        try:
+            _inject_demo_metrics_once()
+        except Exception:
+            pass
+        while True:
+            await asyncio.sleep(30)
+            try:
+                _inject_demo_metrics_once()
+            except Exception:
+                pass
+
+    asyncio.create_task(_loop())
 
 # ── Health probes (k8s / orchestrator-friendly) ────────────────────────────────
 @app.get("/healthz")

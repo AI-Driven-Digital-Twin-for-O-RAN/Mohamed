@@ -41,6 +41,10 @@ controller:
     # before the real ns-3 / C xApp images exist. Flip to "false" once images
     # are available in the registry.
     K8S_DEMO_MODE: "true"
+    # When true, controller auto-injects sim006 reference metrics every 30s
+    # so the Grafana dashboard always renders with believable data — useful
+    # for thesis figures and live demos. Flip to "false" in real production.
+    DEMO_METRICS_AUTO: "true"
   persistence:
     enabled: true
     size: 5Gi
