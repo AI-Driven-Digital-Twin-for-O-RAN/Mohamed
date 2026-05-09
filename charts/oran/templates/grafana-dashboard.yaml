@@ -56,7 +56,7 @@ data:
               "unit":"short"
             }
           },
-          "targets":[{ "expr":"sum(oran_simulations_total)", "refId":"A" }]
+          "targets":[{ "expr":"sum(max by (xapp,scenario) (oran_simulations_total))", "refId":"A" }]
         },
 
         {
@@ -76,7 +76,7 @@ data:
               "unit":"short"
             }
           },
-          "targets":[{ "expr":"sum(oran_handovers_total)", "refId":"A" }]
+          "targets":[{ "expr":"sum(max by (xapp,result) (oran_handovers_total))", "refId":"A" }]
         },
 
         {
@@ -101,7 +101,7 @@ data:
               ]}
             }
           },
-          "targets":[{ "expr":"oran_e2_connections", "refId":"A" }]
+          "targets":[{ "expr":"max(oran_e2_connections)", "refId":"A" }]
         },
 
         {
@@ -124,7 +124,7 @@ data:
               ]}
             }
           },
-          "targets":[{ "expr":"sum(oran_component_up{component=\"xapp\"})", "refId":"A" }]
+          "targets":[{ "expr":"max(oran_component_up{component=\"xapp\"})", "refId":"A" }]
         },
 
         { "type":"row", "title":"Component health", "collapsed":false,
@@ -156,7 +156,9 @@ data:
             }
           },
           "targets":[
-            { "expr":"oran_component_up", "legendFormat":"{{ "{{component}}" }}", "refId":"A" }
+            { "expr":"max by (component) (oran_component_up)",
+              "legendFormat":"{{ "{{component}}" }}", "refId":"A",
+              "instant":true }
           ]
         },
 
@@ -186,7 +188,7 @@ data:
             }
           },
           "targets":[
-            { "expr":"oran_decision_accuracy_pct{xapp=\"gru-handover\"}", "refId":"A" }
+            { "expr":"max(oran_decision_accuracy_pct{xapp=\"gru-handover\"})", "refId":"A" }
           ]
         },
 
@@ -213,7 +215,7 @@ data:
             }
           },
           "targets":[
-            { "expr":"oran_decision_accuracy_pct{xapp=\"rl-handover\"}", "refId":"A" }
+            { "expr":"max(oran_decision_accuracy_pct{xapp=\"rl-handover\"})", "refId":"A" }
           ]
         },
 
@@ -234,7 +236,7 @@ data:
             ]
           },
           "targets":[
-            { "expr":"sum by (result) (oran_handovers_total{xapp=\"gru-handover\"})",
+            { "expr":"sum by (result) (max by (xapp,result) (oran_handovers_total{xapp=\"gru-handover\"}))",
               "legendFormat":"{{ "{{result}}" }}", "refId":"A" }
           ]
         },
@@ -256,7 +258,7 @@ data:
             ]
           },
           "targets":[
-            { "expr":"sum by (result) (oran_handovers_total{xapp=\"rl-handover\"})",
+            { "expr":"sum by (result) (max by (xapp,result) (oran_handovers_total{xapp=\"rl-handover\"}))",
               "legendFormat":"{{ "{{result}}" }}", "refId":"A" }
           ]
         },
@@ -287,7 +289,8 @@ data:
           },
           "options":{"legend":{"showLegend":true,"placement":"bottom"}},
           "targets":[
-            { "expr":"oran_pingpong_rate_pct", "legendFormat":"{{ "{{xapp}}" }}", "refId":"A" }
+            { "expr":"max by (xapp) (oran_pingpong_rate_pct)",
+              "legendFormat":"{{ "{{xapp}}" }}", "refId":"A" }
           ]
         },
 
@@ -331,7 +334,7 @@ data:
           },
           "options":{"legend":{"showLegend":true,"placement":"bottom"}},
           "targets":[
-            { "expr":"sum by (xapp, result) (rate(oran_handovers_total[5m])) * 60",
+            { "expr":"sum by (xapp, result) (rate(max by (xapp,result,pod) (oran_handovers_total)[5m:30s])) * 60",
               "legendFormat":"{{ "{{xapp}}" }} — {{ "{{result}}" }}", "refId":"A" }
           ]
         },
@@ -362,11 +365,11 @@ data:
             ]
           },
           "targets":[
-            { "expr":"oran_decision_accuracy_pct",
+            { "expr":"max by (xapp) (oran_decision_accuracy_pct)",
               "legendFormat":"{{ "{{xapp}}" }}", "format":"table", "refId":"A", "instant":true },
-            { "expr":"oran_pingpong_rate_pct",
+            { "expr":"max by (xapp) (oran_pingpong_rate_pct)",
               "legendFormat":"{{ "{{xapp}}" }}", "format":"table", "refId":"B", "instant":true },
-            { "expr":"sum by (xapp) (oran_handovers_total)",
+            { "expr":"sum by (xapp) (max by (xapp,result) (oran_handovers_total))",
               "legendFormat":"{{ "{{xapp}}" }}", "format":"table", "refId":"C", "instant":true }
           ],
           "transformations":[

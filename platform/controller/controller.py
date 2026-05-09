@@ -437,12 +437,12 @@ def _active_xapp_type() -> str:
     return "none"
 
 def _refresh_runtime_gauges() -> dict:
-    """Recompute every operational gauge in one place.
+    """Recompute operational gauges. Returns the dict /ctrl/status surfaces.
 
-    Called by both /ctrl/status (so the GUI sees current values) and /metrics
-    (so every Prometheus scrape is self-contained — no need for a sidecar to
-    keep hitting /ctrl/status). Returns the same dict that /ctrl/status used
-    to return so we keep one source of truth.
+    When DEMO_METRICS_AUTO is true, the auto-inject loop owns the gauge
+    values (component_up, e2_connections) — we skip writing them here so
+    every Prometheus scrape doesn't immediately reset them to 0. /ctrl/status
+    still returns the real status dict for the GUI's accuracy.
     """
     status = {
         "docker":           _docker_running(),
@@ -452,18 +452,18 @@ def _refresh_runtime_gauges() -> dict:
         "xapp":             _xapp_any_alive(),
         "active_xapp_type": _active_xapp_type(),
     }
-    for component in ("docker", "flexric", "simulation", "pusher", "xapp"):
-        METRIC_COMPONENT_UP.labels(component=component).set(1 if status[component] else 0)
 
-    # E2 connections: count established SCTP sockets on FlexRIC's port.
-    try:
-        r = subprocess.run(
-            "ss -anp 2>/dev/null | grep ':36421' | grep -c ESTAB",
-            shell=True, capture_output=True, text=True, timeout=2,
-        )
-        METRIC_E2_CONNECTIONS.set(int((r.stdout or "0").strip() or 0))
-    except Exception:
-        pass
+    if not DEMO_METRICS_AUTO:
+        for component in ("docker", "flexric", "simulation", "pusher", "xapp"):
+            METRIC_COMPONENT_UP.labels(component=component).set(1 if status[component] else 0)
+        try:
+            r = subprocess.run(
+                "ss -anp 2>/dev/null | grep ':36421' | grep -c ESTAB",
+                shell=True, capture_output=True, text=True, timeout=2,
+            )
+            METRIC_E2_CONNECTIONS.set(int((r.stdout or "0").strip() or 0))
+        except Exception:
+            pass
 
     return status
 
