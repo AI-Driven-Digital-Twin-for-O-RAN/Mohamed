@@ -808,8 +808,42 @@ async def stop_xapp():
 # ── Launch all ─────────────────────────────────────────────────────────────────
 @app.post("/ctrl/launch-all")
 async def launch_all(params: SimParams, bg: BackgroundTasks):
+    """Front door for the GUI's LAUNCH ALL button. Dispatches based on mode:
+
+    - K8s mode (`ORCHESTRATOR_MODE=k8s`): creates a sim Job + xApp Job pair
+      via the K8s API. The dashboard's auto-inject loop continues to
+      animate, plus this adds real Job entries with proper labels visible
+      in `kubectl get jobs`.
+    - Host mode (legacy): falls back to the original subprocess pipeline.
+
+    Returns the same shape in both modes so the GUI doesn't need updates.
+    """
+    if ORCHESTRATOR_MODE == "k8s":
+        # Map xapp_type ("gru"|"rl"|"lb") → xapp_id used in the registry.
+        xapp_id_map = {"gru": "gru-handover", "rl": "rl-handover", "lb": "lb-awf"}
+        xapp_id = xapp_id_map.get(params.xapp_type, f"{params.xapp_type}-handover")
+
+        registry = k8s_client.read_xapp_registry()
+        run_id   = k8s_client.new_run_id()
+        sim  = k8s_client.create_simulation_job(
+            run_id=run_id, scenario=params.scenario,
+            sim_time=params.sim_time, n_ues=params.n_ues, n_mmwave=params.n_mmwave,
+        )
+        xapp = k8s_client.create_xapp_job(
+            run_id=run_id, xapp_id=xapp_id, registry=registry,
+        )
+        return {
+            "status":    "launching",
+            "mode":      "k8s",
+            "run_id":    run_id,
+            "sim":       sim,
+            "xapp":      xapp,
+            "demo_mode": k8s_client.DEMO_MODE,
+        }
+
+    # Host mode (legacy) — runs in the background.
     bg.add_task(_launch_all_task, params)
-    return {"status": "launching"}
+    return {"status": "launching", "mode": "host"}
 
 async def _launch_all_task(params: SimParams):
     is_gru = (params.xapp_type == "gru")
