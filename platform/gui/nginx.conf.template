@@ -8,8 +8,9 @@ server {
         try_files $uri $uri/ /index.html;
     }
 
-    # Proxy controller endpoints. CONTROLLER_HOST/PORT are env-substituted
-    # at container start by nginx's /docker-entrypoint.d/20-envsubst-on-templates.sh.
+    # Common proxy params for controller-bound traffic.
+    # CONTROLLER_HOST/PORT are env-substituted at container start by
+    # nginx's /docker-entrypoint.d/20-envsubst-on-templates.sh.
     location /api/ {
         proxy_pass         http://${CONTROLLER_HOST}:${CONTROLLER_PORT}/;
         proxy_set_header   Host              $host;
@@ -19,6 +20,26 @@ server {
         proxy_read_timeout 600s;
     }
 
+    # Vite frontend (main.js) calls /ctrl/* and /refresh-data WITHOUT the
+    # /api prefix. Proxy those directly.
+    location ~ ^/(ctrl|k8s|debug|refresh-data)(/|$) {
+        proxy_pass         http://${CONTROLLER_HOST}:${CONTROLLER_PORT};
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+        proxy_read_timeout 600s;
+    }
+
+    # /metrics and /readyz are also on the controller (Prometheus probe paths).
+    location ~ ^/(metrics|readyz)$ {
+        proxy_pass         http://${CONTROLLER_HOST}:${CONTROLLER_PORT};
+        proxy_set_header   Host              $host;
+        proxy_read_timeout 30s;
+    }
+
+    # nginx-side liveness — does NOT proxy to controller, used by the
+    # Pod's HTTP healthcheck so it stays up even when controller is down.
     location = /healthz {
         return 200 "ok\n";
         add_header Content-Type text/plain;
