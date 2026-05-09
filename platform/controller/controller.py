@@ -520,49 +520,60 @@ def _inject_demo_metrics_once() -> dict:
     return DEMO_REFERENCE
 
 
-# ── Legacy GUI poll endpoint — kept as a stub so the 3D scene keeps refreshing
-# without 404 noise in the Network tab. The real cell/UE positions came from
-# the old host-mode pusher; in K8s mode we return synthetic data shaped like
-# the original /ctrl/network-state response.
+# ── Legacy GUI poll endpoint — synthetic ns-3 KPM-shaped data so the 3D
+# scene keeps refreshing without 404 noise. Field names match what
+# platform/gui/src/main.js expects (x_position, y_position, dlPrbUsage_percentage,
+# max_x_max_y) — the same shape sim_data_pusher.py wrote to InfluxDB.
 @app.get("/refresh-data")
 async def refresh_data():
     import math, random
-    # 7 mmWave cells in a hexagonal layout + 20 mobile UEs.
+    MAX_X, MAX_Y = 2000, 2000      # ns-3 simulation world bounds
+    CELL_RADIUS  = 700             # arrange the 7 mmWave cells in a ring around the LTE macro
+
+    # Hex layout: 1 LTE macro at centre + 6 mmWave around + 1 extra mmWave near centre.
     cells = []
     for i in range(7):
         ang = i * (2 * math.pi / 6) if i > 0 else 0
-        r   = 0 if i == 0 else 250
+        r   = 0 if i == 0 else CELL_RADIUS
         cells.append({
-            "id":          f"mmW-{i+1:03d}",
-            "x":           round(r * math.cos(ang), 1),
-            "y":           round(r * math.sin(ang), 1),
-            "load":        round(random.uniform(0.30, 0.70), 2),
-            "ues":         random.randint(2, 5),
-            "throughput":  round(random.uniform(150, 400), 1),
-            "latency_ms":  round(random.uniform(0.8, 1.6), 2),
-            "sinr_db":     round(random.uniform(15, 45), 1),
+            "id":                       f"mmW-{i+1:03d}",
+            "type":                     "mmwave" if i > 0 else "lte",
+            "x_position":               round(MAX_X / 2 + r * math.cos(ang), 1),
+            "y_position":               round(MAX_Y / 2 + r * math.sin(ang), 1),
+            "dlPrbUsage_percentage":    round(random.uniform(30, 70), 1),
+            "ulPrbUsage_percentage":    round(random.uniform(20, 50), 1),
+            "L3_servingSINR3gpp":       round(random.uniform(15, 45), 1),
+            "throughput_mbps":          round(random.uniform(150, 400), 1),
+            "latency_ms":               round(random.uniform(0.8, 1.6), 2),
+            "connected_ues":            random.randint(2, 5),
         })
-    ues = [
-        {
-            "id":      f"UE-{i+1:02d}",
-            "cell":    f"mmW-{random.randint(1, 7):03d}",
-            "x":       round(random.uniform(-300, 300), 1),
-            "y":       round(random.uniform(-300, 300), 1),
-            "sinr_db": round(random.uniform(-5, 50), 1),
-        }
-        for i in range(20)
-    ]
+
+    # 20 UEs scattered across the world. Field names match KPM/MAC log columns.
+    ues = []
+    for i in range(20):
+        ues.append({
+            "imsi":           f"UE-{i+1:02d}",
+            "rnti":           1000 + i,
+            "x_position":     round(random.uniform(0, MAX_X), 1),
+            "y_position":     round(random.uniform(0, MAX_Y), 1),
+            "L3_servingSINR3gpp": round(random.uniform(-5, 50), 1),
+            "DRB_UEThpDl":        round(random.uniform(20, 200), 1),
+            "serving_cell":   f"mmW-{random.randint(1, 7):03d}",
+        })
+
     return {
-        "cells":     cells,
-        "ues":       ues,
-        "timestamp": datetime.now().isoformat(),
-        "scenario":  "gru_scenario",
+        "cells":       cells,
+        "ues":         ues,
+        "max_x_max_y": [MAX_X, MAX_Y],
+        "scenario":    "gru_scenario",
+        "timestamp":   datetime.now().isoformat(),
+        # Aggregate KPIs the top bar reads
         "kpi": {
-            "n_cells":    len(cells),
-            "n_ues":      len(ues),
-            "throughput": round(sum(c["throughput"] for c in cells), 1),
-            "latency_ms": round(sum(c["latency_ms"] for c in cells) / len(cells), 2),
-            "load_pct":   round(100 * sum(c["load"] for c in cells) / len(cells), 0),
+            "n_cells":         len(cells),
+            "n_ues":           len(ues),
+            "total_throughput_mbps": round(sum(c["throughput_mbps"] for c in cells), 1),
+            "avg_latency_ms":  round(sum(c["latency_ms"] for c in cells) / len(cells), 2),
+            "avg_load_pct":    round(sum(c["dlPrbUsage_percentage"] for c in cells) / len(cells), 0),
         },
     }
 
