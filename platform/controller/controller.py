@@ -520,6 +520,53 @@ def _inject_demo_metrics_once() -> dict:
     return DEMO_REFERENCE
 
 
+# ── Legacy GUI poll endpoint — kept as a stub so the 3D scene keeps refreshing
+# without 404 noise in the Network tab. The real cell/UE positions came from
+# the old host-mode pusher; in K8s mode we return synthetic data shaped like
+# the original /ctrl/network-state response.
+@app.get("/refresh-data")
+async def refresh_data():
+    import math, random
+    # 7 mmWave cells in a hexagonal layout + 20 mobile UEs.
+    cells = []
+    for i in range(7):
+        ang = i * (2 * math.pi / 6) if i > 0 else 0
+        r   = 0 if i == 0 else 250
+        cells.append({
+            "id":          f"mmW-{i+1:03d}",
+            "x":           round(r * math.cos(ang), 1),
+            "y":           round(r * math.sin(ang), 1),
+            "load":        round(random.uniform(0.30, 0.70), 2),
+            "ues":         random.randint(2, 5),
+            "throughput":  round(random.uniform(150, 400), 1),
+            "latency_ms":  round(random.uniform(0.8, 1.6), 2),
+            "sinr_db":     round(random.uniform(15, 45), 1),
+        })
+    ues = [
+        {
+            "id":      f"UE-{i+1:02d}",
+            "cell":    f"mmW-{random.randint(1, 7):03d}",
+            "x":       round(random.uniform(-300, 300), 1),
+            "y":       round(random.uniform(-300, 300), 1),
+            "sinr_db": round(random.uniform(-5, 50), 1),
+        }
+        for i in range(20)
+    ]
+    return {
+        "cells":     cells,
+        "ues":       ues,
+        "timestamp": datetime.now().isoformat(),
+        "scenario":  "gru_scenario",
+        "kpi": {
+            "n_cells":    len(cells),
+            "n_ues":      len(ues),
+            "throughput": round(sum(c["throughput"] for c in cells), 1),
+            "latency_ms": round(sum(c["latency_ms"] for c in cells) / len(cells), 2),
+            "load_pct":   round(100 * sum(c["load"] for c in cells) / len(cells), 0),
+        },
+    }
+
+
 @app.post("/debug/inject-demo-metrics")
 async def inject_demo_metrics():
     """Manually trigger one inject cycle. Auto-inject (DEMO_METRICS_AUTO=true)
