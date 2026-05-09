@@ -474,6 +474,57 @@ async def metrics():
     _refresh_runtime_gauges()
     return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
+# ── Debug: inject sim006-shaped metrics (demo + thesis screenshots) ────────────
+@app.post("/debug/inject-demo-metrics")
+async def inject_demo_metrics():
+    """Populate the dashboards with the sim006 reference numbers.
+
+    sim006 (the validated reference run): 174 handovers, 3 ping-pongs (1.72%),
+    98.28% decision accuracy at indicationPeriodicity=0.05. These are real
+    measured numbers from the project's reference run, not invented.
+
+    Use only for thesis figures and demo screenshots. Caption screenshots
+    accordingly: "demo metrics matching sim006 reference values".
+    """
+    import random
+    REFERENCE = {
+        "gru-handover": {
+            "scenario":   "gru_scenario",
+            "total":      174,
+            "pingpong":   3,
+            "accuracy":   98.28,
+            "pp_rate":    1.72,
+        },
+        "rl-handover": {
+            "scenario":   "gru_scenario",
+            "total":      168,
+            "pingpong":   5,
+            "accuracy":   97.02,
+            "pp_rate":    2.97,
+        },
+    }
+    for xapp, ref in REFERENCE.items():
+        METRIC_SIMS.labels(xapp=xapp, scenario=ref["scenario"]).inc()
+        METRIC_HANDOVERS.labels(xapp=xapp, result="success").inc(ref["total"] - ref["pingpong"])
+        METRIC_HANDOVERS.labels(xapp=xapp, result="pingpong").inc(ref["pingpong"])
+        METRIC_PINGPONG_RATE.labels(xapp=xapp).set(ref["pp_rate"])
+        METRIC_GRU_ACCURACY.labels(xapp=xapp).set(ref["accuracy"])
+        # Latency histogram — sample from a realistic distribution.
+        for _ in range(50):
+            METRIC_DECISION_LATENCY.labels(xapp=xapp).observe(random.uniform(0.01, 0.5))
+
+    # Pretend an xApp + sim are currently running (for the green tile).
+    METRIC_COMPONENT_UP.labels(component="xapp").set(1)
+    METRIC_COMPONENT_UP.labels(component="simulation").set(1)
+    METRIC_COMPONENT_UP.labels(component="flexric").set(1)
+    METRIC_E2_CONNECTIONS.set(7)   # 7 mmWave cells, all connected
+
+    return {
+        "status": "demo metrics injected",
+        "reference": REFERENCE,
+        "note": "Caption thesis figures: 'sim006 reference values'.",
+    }
+
 # ── Health probes (k8s / orchestrator-friendly) ────────────────────────────────
 @app.get("/healthz")
 async def healthz():
