@@ -55,6 +55,14 @@ pause_screenshot "Section 0 — VM specs + tool versions"
 # ── Section 1: offline validation ────────────────────────────────────
 banner "1. Offline validation (no Docker / cluster needed)"
 
+# Make sure Python deps are installed before pytest tries to import controller.
+# Idempotent: pip skips already-satisfied requirements.
+if ! python3 -c 'import fastapi, prometheus_client, kubernetes' 2>/dev/null; then
+    yellow "Installing controller Python deps (one-time, ~30s)..."
+    pip3 install --user --quiet -r platform/controller/requirements.txt
+    pip3 install --user --quiet pytest 2>/dev/null || true
+fi
+
 echo "── Unit tests (controller pure functions) ──"
 make test 2>&1 | tail -20
 
