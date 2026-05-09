@@ -156,7 +156,7 @@ echo ""; echo "── /k8s/health ──"
 curl -sS http://localhost:8001/k8s/health | jq .
 
 echo ""; echo "── /k8s/xapps (the registry) ──"
-curl -sS http://localhost:8001/k8s/xapps | jq 'keys, .[\"gru-handover\"]'
+curl -sS http://localhost:8001/k8s/xapps | jq 'keys, ."gru-handover"'
 
 echo ""; echo "── /metrics (oran_*) ──"
 curl -sS http://localhost:8001/metrics | grep -E '^oran_' | head -15
