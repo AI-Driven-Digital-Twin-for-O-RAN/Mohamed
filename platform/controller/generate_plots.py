@@ -24,6 +24,7 @@ import uuid
 from collections import Counter, defaultdict
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
@@ -110,9 +111,9 @@ def generate(sim_dir):
 
     # 1. Decision quality scatter
     fig, ax = plt.subplots(figsize=(12, 4))
-    ax.scatter([t for t, c in zip(times, flags) if c],
+    ax.scatter([t for t, c in zip(times, flags, strict=False) if c],
                [1] * sum(flags), color="green", label="Correct", alpha=0.7, s=20)
-    ax.scatter([t for t, c in zip(times, flags) if not c],
+    ax.scatter([t for t, c in zip(times, flags, strict=False) if not c],
                [0] * sum(1 for c in flags if not c),
                color="red", label="Ping-pong", alpha=0.9, s=50, marker="x", linewidths=2)
     ax.set_xlabel("Simulation Time (s)")

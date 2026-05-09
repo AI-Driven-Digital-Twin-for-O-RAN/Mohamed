@@ -52,6 +52,102 @@ Adding a fourth xApp is **one entry in `charts/oran/values.yaml`** + a Docker pu
 
 ## 2. System architecture
 
+### Local development (k3d)
+
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': {
+    'primaryColor':'#1e3a5f','primaryTextColor':'#fff','primaryBorderColor':'#7aa2c8',
+    'lineColor':'#7aa2c8','tertiaryColor':'#0d1f33',
+    'background':'#0d1f33','clusterBkg':'#16273f','clusterBorder':'#7aa2c8'
+}}}%%
+flowchart TB
+    subgraph DEV["💻 Developer laptop / Azure VM"]
+        subgraph DOCKER["🐳 Docker Desktop / Engine"]
+            subgraph K3D["k3d cluster (oran-dev)"]
+                subgraph NS["namespace: oran"]
+                    direction LR
+                    CTRL["controller<br/>FastAPI :8001"]
+                    GUI["3D GUI ×2<br/>nginx :80"]
+                    GRU["gru-service :5000"]
+                    RL["rl-service :5001"]
+                    PROM["Prometheus :9090"]
+                    GRAF["Grafana :3000"]
+                    CM[("📋 xApp registry<br/>ConfigMap")]
+                    JOBS[/"sim-* + xapp-*<br/>K8s Jobs"/]
+                end
+            end
+        end
+        BROWSER["🌐 Browser<br/>(localhost:3000/3001/8001/9090)"]
+    end
+
+    BROWSER -. "kubectl port-forward" .-> CTRL
+    BROWSER -. "kubectl port-forward" .-> GUI
+    BROWSER -. "kubectl port-forward" .-> GRAF
+    BROWSER -. "kubectl port-forward" .-> PROM
+    CTRL -- "reads at /etc/oran/xapps.json" --> CM
+    CTRL -. "POST /k8s/sim/launch creates" .-> JOBS
+    PROM -- "scrape pod annotation" --> CTRL
+    GRAF -- "datasource" --> PROM
+    GUI -- "/api proxy" --> CTRL
+```
+
+> Source: [docs/images/local-k3d-architecture.mmd](docs/images/local-k3d-architecture.mmd) · render to PNG with `make diagrams`.
+
+### Cloud reference (single-VM k3s on Azure / AWS)
+
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': {
+    'primaryColor':'#1e3a5f','primaryTextColor':'#fff','primaryBorderColor':'#7aa2c8',
+    'lineColor':'#7aa2c8','tertiaryColor':'#0d1f33',
+    'background':'#0d1f33','clusterBkg':'#16273f','clusterBorder':'#7aa2c8'
+}}}%%
+flowchart LR
+    subgraph EXT["🌍 Internet"]
+        OP["👤 Operator<br/>(SSH + browser)"]
+    end
+    subgraph CLOUD["☁ Azure / AWS region"]
+        subgraph SG["🛡 Security Group / NSG"]
+            direction TB
+            SSH["SSH 22<br/>(operator IP)"]
+            HTTP["HTTP 80/443<br/>(world)"]
+            K8S_API["k8s API 6443<br/>(operator IP)"]
+        end
+        subgraph VM["💻 Single VM (D8s_v5 / c5.4xlarge)"]
+            EIP[("📌 Static IP<br/>EBS gp3 200GiB")]
+            subgraph K3S["⚙ k3s (single-node)"]
+                direction TB
+                CTRL_C["🎛 controller<br/>:8001"]
+                GUI_C["🖥 3D GUI<br/>nginx :80"]
+                GRU_C["🧠 GRU svc :5000<br/>+HPA"]
+                RL_C["🤖 RL svc :5001<br/>+HPA"]
+                FLEX["📡 FlexRIC<br/>SCTP 36421/36422"]
+                NS3[/"⏱ ns-3 Job<br/>(per run)"/]
+                XAPP[/"⚡ xApp Job<br/>(per run)"/]
+                INFLUX[("📊 InfluxDB")]
+                PROM_C["🔭 Prometheus"]
+                GRAF_C["📈 Grafana<br/>+ pre-loaded<br/>dashboard"]
+            end
+        end
+    end
+    OP --> SSH
+    OP --> HTTP
+    OP --> K8S_API
+    SG --- VM
+    GUI_C -- "/api proxy" --> CTRL_C
+    CTRL_C -. "create Job" .-> NS3
+    CTRL_C -. "create Job" .-> XAPP
+    XAPP -- "HTTP predict" --> GRU_C
+    XAPP -- "HTTP predict" --> RL_C
+    NS3 -- "E2 / SCTP" --> FLEX
+    XAPP -- "E42 / SCTP" --> FLEX
+    PROM_C -- "scrape" --> CTRL_C
+    GRAF_C -- "query" --> PROM_C
+```
+
+> Source: [docs/images/cloud-architecture.mmd](docs/images/cloud-architecture.mmd) · cost shape + provisioning details in [docs/CLOUD.md](docs/CLOUD.md).
+
+### Component-level data flow (legacy ASCII)
+
 ```
                                   ┌────────────────────────────────────────┐
                                   │  Operator browser / kubectl / curl     │
@@ -387,6 +483,31 @@ kubectl wait --for=condition=complete -n oran job/sim-r<id> --timeout=120s
 ```
 
 The unit tests caught a real bug during Phase 5 — `_build_decision_log` used `defaultdict` without importing it at module level. Fixed in commit history.
+
+---
+
+## 7b. Screenshots & demo evidence
+
+Reproducible artifacts captured during a live demo session on Azure. Filenames follow `docs/images/<n>-<slug>.png` so they slot directly into the thesis figure list.
+
+| # | What it shows | How to capture | File |
+|---|---|---|---|
+| 1 | `make doctor` output — env vars + tooling + paths green | Run `make doctor` on the VM; screenshot the terminal | [`docs/images/01-doctor.png`](docs/images/01-doctor.png) |
+| 2 | `make test` — 18/18 unit tests passing | Run `make test`; screenshot the last 5 lines | [`docs/images/02-unit-tests.png`](docs/images/02-unit-tests.png) |
+| 3 | `helm lint` clean + 27 K8s resource counts | `make helm-lint && helm template oran charts/oran \| grep "^kind:" \| sort \| uniq -c` | [`docs/images/03-helm-lint.png`](docs/images/03-helm-lint.png) |
+| 4 | `kubectl get pods -n oran` — 6 Running 1/1 | After `make deploy`, capture the table | [`docs/images/04-pods-running.png`](docs/images/04-pods-running.png) |
+| 5 | The 3D GUI in the browser — towers + UEs + KPI bar | `http://<VM-IP>:3001` | [`docs/images/05-3d-gui.png`](docs/images/05-3d-gui.png) |
+| 6 | The Grafana dashboard — populated with sim006 reference values | `http://<VM-IP>:3000` → admin/admin → "O-RAN platform — overview" | [`docs/images/06-grafana-dashboard.png`](docs/images/06-grafana-dashboard.png) |
+| 7 | `kubectl get jobs -n oran` after multi-scenario run | `bash tools/run-multi-scenario.sh --parallel` then capture the final state | [`docs/images/07-jobs-table.png`](docs/images/07-jobs-table.png) |
+| 8 | Browser DevTools Network tab on `LAUNCH ALL` click — `mode: "k8s"` in response | F12 → Network → click LAUNCH ALL → expand the POST `/ctrl/launch-all` row | [`docs/images/08-launch-all-network.png`](docs/images/08-launch-all-network.png) |
+| 9 | `curl /metrics \| grep oran_` — live Prometheus metrics | Run on the VM | [`docs/images/09-metrics-curl.png`](docs/images/09-metrics-curl.png) |
+| 10 | Prometheus targets — controller scraped UP | `http://<VM-IP>:9090/targets` | [`docs/images/10-prometheus-targets.png`](docs/images/10-prometheus-targets.png) |
+| 11 | GitHub Actions all green | `https://github.com/AI-Driven-Digital-Twin-for-O-RAN/Mohamed/actions` | [`docs/images/11-actions-green.png`](docs/images/11-actions-green.png) |
+| 12 | The xApp registry ConfigMap rendered | `kubectl get cm oran-oran-xapp-registry -n oran -o jsonpath='{.data.xapps\.json}' \| jq` | [`docs/images/12-xapp-registry.png`](docs/images/12-xapp-registry.png) |
+
+> **For the thesis book:** these are the figures that map 1:1 to the chapters — Section 4 (registry pattern) uses #12, Section 5 (deployment) uses #4 and #11, Section 6 (observability) uses #6, #9, #10, Section 7 (validation) uses #2, #3, #7, #8.
+>
+> Drop the captured PNGs into `docs/images/` with the exact filenames above and they appear in the rendered README automatically.
 
 ---
 

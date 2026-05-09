@@ -7,10 +7,9 @@ directory to sys.path so tests can `from controller import _calc_pingpong`.
 from __future__ import annotations
 
 import csv
-import os
 import sys
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable
 
 import pytest
 

@@ -4,16 +4,20 @@ generate_gru_pdf.py — GRU Handover Behavior Analysis PDF
 Usage: python3 generate_gru_pdf.py <sim_dir>
 """
 import sys
+
+import matplotlib
 import numpy as np
 import pandas as pd
-import matplotlib
+
 matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
-from matplotlib.backends.backend_pdf import PdfPages
-from matplotlib.patches import FancyArrowPatch, Rectangle
-from pathlib import Path
 import warnings
+from pathlib import Path
+
+import matplotlib.gridspec as gridspec
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
+from matplotlib.patches import Rectangle
+
 warnings.filterwarnings('ignore')
 
 # ── Config ─────────────────────────────────────────────────────────────────────
@@ -121,7 +125,7 @@ def page_cover(pdf):
         ('Training Rows', f'{len(df_lte):,}', ACCENT),
     ]
     xs = [0.1, 0.27, 0.44, 0.61, 0.78, 0.95]
-    for (label, val, clr), x in zip(stats, xs):
+    for (label, val, clr), x in zip(stats, xs, strict=False):
         fig.add_axes([x-0.08, 0.42, 0.16, 0.18]).set_visible(False)
         bax = fig.add_axes([x-0.08, 0.42, 0.16, 0.18])
         bax.set_facecolor(PANEL_BG)
@@ -213,7 +217,7 @@ def page_timeline(pdf):
                         color=[RED]*len(pp_events), alpha=0.85, height=0.6)
         ax2.set_yticks(range(len(pp_events)))
         ax2.set_yticklabels(pp_labels, fontsize=8, color=TEXT_CLR)
-        for i, (bar, t) in enumerate(zip(bars, pp_times_list)):
+        for i, (_bar, t) in enumerate(zip(bars, pp_times_list, strict=False)):
             ax2.text(t + 0.3, i, f't={t:.1f}s', va='center',
                      fontsize=8, color=TEXT_CLR)
 
@@ -289,7 +293,7 @@ def page_learning(pdf):
     b2 = ax3.bar(x + width/2, v_h2, width, label=f'Second {t_max-mid:.0f}s', color=GREEN, alpha=0.85)
     ax3.set_xticks(x)
     ax3.set_xticklabels(cats, color=TEXT_CLR, fontsize=8)
-    for bar, val in zip(list(b1)+list(b2), v_h1+v_h2):
+    for bar, val in zip(list(b1)+list(b2), v_h1+v_h2, strict=False):
         label = f'{val:.1f}' if isinstance(val, float) else str(val)
         ax3.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.5,
                  label, ha='center', va='bottom', fontsize=8, color=TEXT_CLR)
@@ -307,7 +311,7 @@ def page_learning(pdf):
     ax4.set_yticks(range(len(cell_src)))
     ax4.set_yticklabels([f'Cell {int(c)}' for c in cell_src.index],
                         color=TEXT_CLR, fontsize=9)
-    for bar, val in zip(bars4, cell_src.values):
+    for bar, val in zip(bars4, cell_src.values, strict=False):
         ax4.text(val + 0.3, bar.get_y() + bar.get_height()/2,
                  str(val), va='center', fontsize=8, color=TEXT_CLR)
     style_ax(ax4, 'HOs by Source Cell\n(mmWave cell load indicator)',
@@ -510,7 +514,7 @@ def page_conclusions(pdf):
               '• Consistent with prior runs: sim010=3.65%, sim011=3.24%, sim014=3.00%.']),
 
             (YELLOW, '4. Training Dataset Quality',
-             [f'• sim011 (used for DDQN v2 training): 95,422 rows · 309 HOs · full 120s · 20 UEs · 8 cells.',
+             ['• sim011 (used for DDQN v2 training): 95,422 rows · 309 HOs · full 120s · 20 UEs · 8 cells.',
               '• Real NS-3 mmWave traces — RSRP range –112 to –35 dBm, SINR range –12 to +65 dB.',
               '• Temporal coherence preserved: sorted by IMSI + Time before feeding to DDQN replay buffer.',
               '• This data directly addresses the DDQN v1 domain gap (trained on WiFi/5G synthetic data).']),
@@ -523,13 +527,13 @@ def page_conclusions(pdf):
         ]
     else:
         sections = [
-            (ORANGE, f'1. RL DDQN v2 — Behavior Pattern',
+            (ORANGE, '1. RL DDQN v2 — Behavior Pattern',
              [f'• {len(pp_events)} ping-pong events spread across {t_max:.1f}s simulation (not front-loaded).',
               '• DDQN evaluates each A3 trigger independently — no temporal window or state memory.',
               '• PP clusters recur every ~25-30s when UEs oscillate between two equally-ranked cells.',
               '• This is the fundamental architectural difference from GRU: stateless Q-value decisions.']),
 
-            (GREEN, f'2. Comparison with GRU xApp',
+            (GREEN, '2. Comparison with GRU xApp',
              [f'• RL v2 PP rate: {pp_rate:.2f}% vs GRU sim014: 3.00% — RL has ~{pp_rate/3.0:.1f}x more PP.',
               f'• RL v2 HO pace: {n_ho/t_max:.2f} HOs/s vs GRU: 2.85 HOs/s — both trigger at similar frequency.',
               '• GRU front-loads PP then goes clean; RL v2 maintains steady sporadic PP clusters.',

@@ -20,12 +20,12 @@ from __future__ import annotations
 import json
 import os
 import time
-from typing import Any, Optional
+from typing import Any
 
 # The kubernetes client is imported lazily so the controller can still start
 # in environments where it isn't installed (e.g. someone runs the bare script).
 try:
-    from kubernetes import client, config, watch  # type: ignore
+    from kubernetes import client, config  # type: ignore
     from kubernetes.client.exceptions import ApiException  # type: ignore
     _HAS_K8S = True
 except ImportError:                                                 # pragma: no cover
@@ -50,7 +50,7 @@ DEMO_MODE       = os.environ.get("K8S_DEMO_MODE", "true").lower() in ("1", "true
 
 # ── Bootstrap ────────────────────────────────────────────────────────────────
 _initialised = False
-_init_error: Optional[str] = None
+_init_error: str | None = None
 
 
 def _init_once() -> bool:
@@ -80,7 +80,7 @@ def is_in_cluster() -> bool:
     return os.path.exists("/var/run/secrets/kubernetes.io/serviceaccount/token")
 
 
-def is_available() -> tuple[bool, Optional[str]]:
+def is_available() -> tuple[bool, str | None]:
     """Returns (ok, error). Useful for /k8s/health."""
     ok = _init_once()
     return ok, _init_error
@@ -130,8 +130,8 @@ DEFAULT_LABELS = {
 
 
 def _make_job_object(*, name: str, image: str, command: list[str], labels: dict[str, str],
-                     env: Optional[dict[str, str]] = None,
-                     resources: Optional[dict[str, dict[str, str]]] = None,
+                     env: dict[str, str] | None = None,
+                     resources: dict[str, dict[str, str]] | None = None,
                      ttl_seconds_after_finished: int = 3600) -> Any:
     """Build a batch/v1 Job object."""
     env_list = [client.V1EnvVar(name=k, value=str(v)) for k, v in (env or {}).items()]
@@ -284,7 +284,7 @@ def create_xapp_job(*, run_id: str, xapp_id: str, registry: dict[str, Any]) -> d
 
 
 # ── Job inspection ───────────────────────────────────────────────────────────
-def list_jobs(run_id: Optional[str] = None) -> list[dict[str, Any]]:
+def list_jobs(run_id: str | None = None) -> list[dict[str, Any]]:
     """List Jobs created by this controller (filter by run_id if given)."""
     if not _init_once():
         return []

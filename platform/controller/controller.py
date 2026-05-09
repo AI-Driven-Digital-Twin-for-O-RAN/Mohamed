@@ -18,13 +18,16 @@ import uuid
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 from fastapi import BackgroundTasks, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from prometheus_client import (
-    Counter, Gauge, Histogram, generate_latest, CONTENT_TYPE_LATEST,
+    CONTENT_TYPE_LATEST,
+    Counter,
+    Gauge,
+    Histogram,
+    generate_latest,
 )
 from pydantic import BaseModel
 
@@ -245,9 +248,9 @@ def _generate_plots(decisions: list, dest: str, sim_label: str):
 
         # Plot 1: decision quality scatter
         fig, ax = plt.subplots(figsize=(10, 4))
-        ax.scatter([t for t, c in zip(times, correct) if c],
+        ax.scatter([t for t, c in zip(times, correct, strict=False) if c],
                    [1] * sum(correct), color="green", label="Correct", alpha=0.7, s=20)
-        ax.scatter([t for t, c in zip(times, correct) if not c],
+        ax.scatter([t for t, c in zip(times, correct, strict=False) if not c],
                    [0] * sum(1 for c in correct if not c), color="red", label="Ping-pong", alpha=0.7, s=20)
         ax.set_xlabel("Simulation Time (s)")
         ax.set_yticks([0, 1])
@@ -526,7 +529,8 @@ def _inject_demo_metrics_once() -> dict:
 # max_x_max_y) — the same shape sim_data_pusher.py wrote to InfluxDB.
 @app.get("/refresh-data")
 async def refresh_data():
-    import math, random
+    import math
+    import random
     MAX_X, MAX_Y = 2000, 2000      # ns-3 simulation world bounds
     CELL_RADIUS  = 700             # arrange the 7 mmWave cells in a ring around the LTE macro
 
@@ -651,7 +655,7 @@ async def readyz():
 #  between them based on $ORCHESTRATOR_MODE (default: host). When deployed by
 #  the Helm chart, the chart sets ORCHESTRATOR_MODE=k8s and grants Job RBAC.
 # ─────────────────────────────────────────────────────────────────────────────
-import k8s_client   # noqa: E402  (imported here to keep host mode boot-path clean)
+import k8s_client  # noqa: E402  (imported here to keep host mode boot-path clean)
 
 ORCHESTRATOR_MODE = os.environ.get("ORCHESTRATOR_MODE", "host").lower()
 
@@ -708,7 +712,7 @@ async def k8s_sim_launch(params: K8sLaunchParams):
 
 
 @app.get("/k8s/jobs")
-async def k8s_jobs(run_id: Optional[str] = None):
+async def k8s_jobs(run_id: str | None = None):
     return {"jobs": k8s_client.list_jobs(run_id=run_id)}
 
 

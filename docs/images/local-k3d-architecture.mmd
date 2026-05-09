@@ -1,0 +1,45 @@
+%%{init: {'theme':'base', 'themeVariables': {
+    'primaryColor':'#1e3a5f','primaryTextColor':'#fff','primaryBorderColor':'#7aa2c8',
+    'lineColor':'#7aa2c8','tertiaryColor':'#0d1f33',
+    'background':'#0d1f33','clusterBkg':'#16273f','clusterBorder':'#7aa2c8'
+}}}%%
+flowchart TB
+    subgraph DEV["💻 Developer laptop / Azure VM"]
+        subgraph DOCKER["🐳 Docker Desktop / Engine"]
+            subgraph K3D["k3d cluster (oran-dev)"]
+                subgraph NS["namespace: oran"]
+                    direction LR
+                    CTRL["controller<br/>FastAPI :8001"]
+                    GUI["3D GUI ×2<br/>nginx :80"]
+                    GRU["gru-service :5000"]
+                    RL["rl-service :5001"]
+                    PROM["Prometheus :9090"]
+                    GRAF["Grafana :3000"]
+                    CM[("📋 xApp registry<br/>ConfigMap")]
+                    JOBS[/"sim-* + xapp-*<br/>K8s Jobs (busybox demo)"/]
+                end
+            end
+        end
+        BROWSER["🌐 Browser<br/>(localhost:3000/3001/8001/9090)"]
+    end
+
+    BROWSER -- "kubectl port-forward" --> CTRL
+    BROWSER -- "kubectl port-forward" --> GUI
+    BROWSER -- "kubectl port-forward" --> GRAF
+    BROWSER -- "kubectl port-forward" --> PROM
+
+    CTRL -- "reads at /etc/oran/xapps.json" --> CM
+    CTRL -. "POST /k8s/sim/launch creates" .-> JOBS
+    PROM -- "scrape pod annotation" --> CTRL
+    GRAF -- "datasource" --> PROM
+    GUI -- "/api proxy" --> CTRL
+
+    classDef dev fill:#0d2540,stroke:#7aa2c8,color:#fff
+    classDef pod fill:#2a5b89,stroke:#a4c4e0,color:#fff
+    classDef job fill:#7c3a3a,stroke:#e08989,color:#fff
+    classDef cm fill:#3a5a3a,stroke:#89e089,color:#fff
+    classDef br fill:#1e4a73,stroke:#7aa2c8,color:#fff
+    class BROWSER br
+    class CTRL,GUI,GRU,RL,PROM,GRAF pod
+    class JOBS job
+    class CM cm

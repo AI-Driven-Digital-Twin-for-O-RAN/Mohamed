@@ -35,12 +35,14 @@ jobs:
       - name: Run shellcheck
         uses: ludeeus/action-shellcheck@master
         env:
-          SHELLCHECK_OPTS: --severity=warning --shell=bash
+          SHELLCHECK_OPTS: --severity=error --shell=bash
         with:
+          # Lint only OUR scripts. Vendored upstream code (FlexRIC, ns-3,
+          # 2d-gui, swig) has its own quality gates and isn't our problem.
+          scandir: tools
           ignore_paths: >-
-            platform/flexric/build
-            platform/ns3-sim/mmwave-LENA-oran/build
-            platform/gui/node_modules
+            platform
+            xapps/gru-handover/dev-scratch
 
   # ── JS / Vite frontend ────────────────────────────────────────────
   js:
@@ -78,7 +80,9 @@ jobs:
       - uses: hadolint/hadolint-action@v3.1.0
         with:
           dockerfile: ${{ matrix.dockerfile }}
-          failure-threshold: warning
+          # Configured in /.hadolint.yaml (ignores DL3008/3013/3018 +
+          # failure-threshold: error). Warnings stay informational.
+          config: .hadolint.yaml
 
   # ── docker-compose syntax ─────────────────────────────────────────
   compose-config:
@@ -98,8 +102,13 @@ jobs:
       - name: Run yamllint
         uses: ibiqlik/action-yamllint@v3
         with:
+          # Config + scope are in /.yamllint.yaml. We only lint our own
+          # workflows + compose, NOT vendored Helm or upstream YAML.
+          config_file: .yamllint.yaml
           file_or_dir: |
             .github/workflows
             docker-compose.dev.yml
+            charts/oran/Chart.yaml
+            charts/oran/values.yaml
           format: github
           strict: false

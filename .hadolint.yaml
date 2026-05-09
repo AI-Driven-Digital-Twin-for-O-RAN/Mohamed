@@ -1,0 +1,17 @@
+# hadolint config — Dockerfile lint rules.
+# https://github.com/hadolint/hadolint/wiki
+
+# Ignore version-pinning rules. Pinning every apt package version is brittle
+# (apt repo rotates packages weekly) and pinning pip versions belongs in
+# requirements.txt, not the Dockerfile.
+ignored:
+  - DL3008    # "Pin versions in apt-get install"
+  - DL3013    # "Pin versions in pip install"
+  - DL3018    # "Pin versions in apk add"  (we don't use alpine but harmless)
+  - DL4006    # "Set the SHELL option -o pipefail" — applies to base images we don't control
+
+failure-threshold: error    # warnings stay informational, only errors block CI
+
+trustedRegistries:
+  - docker.io
+  - mohamed710

@@ -11,7 +11,26 @@ filterwarnings = [
 [tool.ruff]
 line-length = 110
 target-version = "py312"
+# Don't lint vendored upstream code or teammates' research code — only our
+# DevOps surface (controller, k8s_client, tools, tests).
+extend-exclude = [
+    "platform/2d-gui",                    # Yousef's vendored Grafana/FastAPI backend
+    "platform/flexric",                   # OpenAirInterface FlexRIC tree
+    "platform/ns3-sim",                   # ns-3 mmWave-LENA-oran tree
+    "xapps/gru-handover/python-service",  # Yousef's gru_xapp.py (research code)
+    "xapps/gru-handover/training",        # Fares' notebook + predict.py
+    "xapps/gru-handover/dev-scratch",     # Yousef's C iteration scratch
+    "xapps/rl-handover/python-service",   # Salama's rl_xapp.py + agent.py
+    "xapps/rl-handover/training",         # Salama's training scripts
+    "tools/docs-generation",              # PDF generators imported from elsewhere
+]
 
 [tool.ruff.lint]
 extend-select = ["E", "F", "I", "B", "UP"]
-ignore        = ["E501"]   # long lines OK in tests
+ignore = [
+    "E501",   # long lines OK in tests and configs
+    "E701",   # multiple statements on one line (one-line if/return guards are intentional)
+    "E702",   # multiple statements on one line (semicolons in compound steps)
+    "E741",   # "ambiguous variable name" — l/i/k are fine for local index vars
+    "B904",   # "raise from" — legacy code may not need it
+]

@@ -1,0 +1,60 @@
+%%{init: {'theme':'base', 'themeVariables': {
+    'primaryColor':'#1e3a5f','primaryTextColor':'#fff','primaryBorderColor':'#7aa2c8',
+    'lineColor':'#7aa2c8','tertiaryColor':'#0d1f33',
+    'background':'#0d1f33','clusterBkg':'#16273f','clusterBorder':'#7aa2c8'
+}}}%%
+flowchart LR
+    subgraph EXT["🌍 Internet"]
+        OP["👤 Operator<br/>(SSH + browser)"]
+    end
+
+    subgraph CLOUD["☁ Azure / AWS region"]
+        subgraph SG["🛡 Security Group / NSG"]
+            direction TB
+            SSH["SSH 22<br/>(operator IP)"]
+            HTTP["HTTP 80/443<br/>(world)"]
+            K8S_API["k8s API 6443<br/>(operator IP)"]
+        end
+        subgraph VM["💻 Single VM (D8s_v5 / c5.4xlarge)"]
+            EIP[("📌 Static IP<br/>EBS gp3 200GiB")]
+            subgraph K3S["⚙ k3s (single-node)"]
+                direction TB
+                CTRL["🎛 controller<br/>:8001"]
+                GUI["🖥 3D GUI<br/>nginx :80"]
+                GRU["🧠 GRU svc<br/>:5000 +HPA"]
+                RL["🤖 RL svc<br/>:5001 +HPA"]
+                FLEX["📡 FlexRIC<br/>SCTP 36421/36422"]
+                NS3[/"⏱ ns-3 sim<br/>K8s Job (per run)"/]
+                XAPP[/"⚡ xApp<br/>K8s Job (per run)"/]
+                INFLUX[("📊 InfluxDB<br/>StatefulSet")]
+                PROM["🔭 Prometheus"]
+                GRAF["📈 Grafana<br/>+ pre-loaded<br/>dashboard"]
+            end
+        end
+    end
+
+    OP --> SSH
+    OP --> HTTP
+    OP --> K8S_API
+    SG --- VM
+
+    GUI -- "/api proxy" --> CTRL
+    CTRL -. "create Job" .-> NS3
+    CTRL -. "create Job" .-> XAPP
+    XAPP -- "HTTP predict" --> GRU
+    XAPP -- "HTTP predict" --> RL
+    NS3 -- "E2 / SCTP" --> FLEX
+    XAPP -- "E42 / SCTP" --> FLEX
+    PROM -- "scrape /metrics" --> CTRL
+    GRAF -- "query" --> PROM
+    NS3 --> INFLUX
+
+    classDef external fill:#1e4a73,stroke:#7aa2c8,color:#fff
+    classDef cloud    fill:#1e3a5f,stroke:#7aa2c8,color:#fff
+    classDef pod      fill:#2a5b89,stroke:#a4c4e0,color:#fff
+    classDef job      fill:#7c3a3a,stroke:#e08989,color:#fff
+    classDef sg       fill:#5a2e6e,stroke:#c490de,color:#fff
+    class OP external
+    class SSH,HTTP,K8S_API sg
+    class CTRL,GUI,GRU,RL,FLEX,INFLUX,PROM,GRAF pod
+    class NS3,XAPP job

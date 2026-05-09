@@ -1,0 +1,35 @@
+# yamllint config — relaxed rules suitable for K8s manifests and Helm
+# templates. https://yamllint.readthedocs.io/en/stable/rules.html
+extends: default
+
+rules:
+  # K8s + Helm templates routinely produce long inline expressions.
+  line-length:
+    max: 200
+    level: warning
+
+  # Helm-rendered output starts with `---`, but the source `templates/*.yaml`
+  # files don't always — and that's fine.
+  document-start:
+    present: false
+
+  # Allow zero, one, or two indentation spaces consistently.
+  indentation:
+    spaces: consistent
+    indent-sequences: consistent
+
+  # Helm Chart.yaml has truthy strings ("yes"/"no"/"on"/"off") and that's OK.
+  truthy:
+    level: warning
+    allowed-values: ["true", "false", "yes", "no", "on", "off"]
+
+  comments:
+    min-spaces-from-content: 1
+
+  comments-indentation: disable
+
+ignore: |
+  platform/flexric/
+  platform/ns3-sim/
+  platform/2d-gui/
+  charts/oran/charts/

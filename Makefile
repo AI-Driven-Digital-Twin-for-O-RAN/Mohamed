@@ -418,6 +418,27 @@ tf-apply:
 tf-destroy:
 	@cd $(TF_DIR) && $(TERRAFORM) destroy -auto-approve
 
+# ── Diagrams (Mermaid → PNG/SVG) ────────────────────────────────────
+# Render docs/images/*.mmd to PNG and SVG using mermaid-cli (mmdc).
+# `npm install -g @mermaid-js/mermaid-cli` once. PNGs go alongside the
+# .mmd source so they render in the README and are usable for the thesis.
+.PHONY: diagrams
+diagrams:
+	@if ! command -v mmdc >/dev/null 2>&1; then \
+	    echo "  mmdc not found. Install it first:"; \
+	    echo "    npm install -g @mermaid-js/mermaid-cli"; \
+	    exit 1; \
+	fi
+	@for src in $(PROJECT_ROOT)/docs/images/*.mmd; do \
+	    [ -f "$$src" ] || continue; \
+	    base=$$(basename $$src .mmd); \
+	    echo "  rendering $$base..."; \
+	    mmdc -i $$src -o $(PROJECT_ROOT)/docs/images/$$base.png \
+	         -t dark -b transparent -w 1600 2>/dev/null && echo "    ✓ $$base.png"; \
+	    mmdc -i $$src -o $(PROJECT_ROOT)/docs/images/$$base.svg \
+	         -t dark -b transparent 2>/dev/null && echo "    ✓ $$base.svg"; \
+	done
+
 # ── Tests ───────────────────────────────────────────────────────────
 .PHONY: test test-cov
 
