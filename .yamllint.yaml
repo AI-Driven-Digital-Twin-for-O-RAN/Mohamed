@@ -1,5 +1,6 @@
-# yamllint config — relaxed rules suitable for K8s manifests and Helm
-# templates. https://yamllint.readthedocs.io/en/stable/rules.html
+# yamllint config — relaxed rules suitable for K8s manifests, Helm
+# templates, and code that uses alignment-style spacing for readability.
+# https://yamllint.readthedocs.io/en/stable/rules.html
 extends: default
 
 rules:
@@ -8,25 +9,35 @@ rules:
     max: 200
     level: warning
 
-  # Helm-rendered output starts with `---`, but the source `templates/*.yaml`
-  # files don't always — and that's fine.
   document-start:
     present: false
 
-  # Allow zero, one, or two indentation spaces consistently.
   indentation:
     spaces: consistent
     indent-sequences: consistent
 
-  # Helm Chart.yaml has truthy strings ("yes"/"no"/"on"/"off") and that's OK.
   truthy:
     level: warning
     allowed-values: ["true", "false", "yes", "no", "on", "off"]
 
+  # Aligned-spacing style is intentional throughout values.yaml + compose
+  # (`key:    value` for column alignment, `{ a, b, c }` resource blocks).
+  # Disable the spacing checks rather than fight them.
+  colons: disable
+  braces: disable
+  brackets: disable
+  commas: disable
+  hyphens: disable
+  empty-values: disable
+
   comments:
     min-spaces-from-content: 1
-
   comments-indentation: disable
+
+  trailing-spaces:
+    level: warning
+  empty-lines:
+    max: 2
 
 ignore: |
   platform/flexric/
